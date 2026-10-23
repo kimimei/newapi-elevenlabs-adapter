@@ -44,4 +44,4 @@
 - 订阅额度到积分的换算依赖你自己填 `ADAPTER_UP_CREDITS_PER_USD`，填错则毛利率会错（填 0 则不算，不会给错数）
 - 未内置重试队列，上游 5xx 由调用方自行重试
 
-[0.1.0]: https://github.com/kimimei/elevenlabs-adapter/releases/tag/v0.1.0
+[0.1.0]: https://github.com/kimimei/newapi-elevenlabs-adapter/releases/tag/v0.1.0

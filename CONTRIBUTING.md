@@ -5,7 +5,7 @@
 ## 开发环境
 
 ```bash
-git clone https://github.com/kimimei/elevenlabs-adapter.git
+git clone https://github.com/kimimei/newapi-elevenlabs-adapter.git
 cd elevenlabs-adapter
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate

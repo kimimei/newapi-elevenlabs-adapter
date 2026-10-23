@@ -29,7 +29,7 @@
 
 ```
 # 服务器上（任意 Linux，Python 3.10+）
-git clone https://github.com/kimimei/elevenlabs-adapter.git
+git clone https://github.com/kimimei/newapi-elevenlabs-adapter.git
 cd elevenlabs-adapter
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
 nohup .venv/bin/python run.py &        # 监听 0.0.0.0:8123
