@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>ElevenLabs 计费对数报告 · eleven_v3</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font: 13px/1.65 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+         color: #1c1c22; margin: 0; padding: 24px; background: #fff; }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  header { border-bottom: 2px solid #1c1c22; padding-bottom: 10px; margin-bottom: 18px; }
+  h1 { font-size: 19px; margin: 0 0 4px; letter-spacing: .2px; }
+  .sub { color: #6c6c76; font-size: 12px; }
+  .verdict { border: 1px solid #1f7a3d; background: #f2f8f4;
+             padding: 12px 14px; border-radius: 6px; margin: 16px 0 20px; }
+  .verdict b { font-size: 15px; color: #1f7a3d; }
+  .verdict p { margin: 6px 0 0; font-size: 12.5px; color: #3c3c46; }
+  h2 { font-size: 13px; margin: 22px 0 8px; color: #1c1c22;
+       border-left: 3px solid #1c1c22; padding-left: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { border: 1px solid #e3e3e8; padding: 6px 8px; text-align: right; }
+  th { background: #f6f6f8; font-weight: 600; color: #3c3c46; }
+  td.l, th.l { text-align: left; }
+  td.ok { color: #1f7a3d; }
+  td.bad { color: #c62828; font-weight: 600; }
+  .kv { width: 100%; font-size: 12px; }
+  .kv td { border: none; border-bottom: 1px solid #f0f0f3; padding: 5px 0; }
+  .kv td { text-align: left; }
+  .kv td:first-child { color: #6c6c76; width: 34%; }
+  .note { font-size: 11.5px; color: #6c6c76; margin-top: 10px; line-height: 1.6; }
+  .warn { background: #fdf3e7; border-left: 3px solid #d98324; padding: 10px 12px;
+          font-size: 12px; margin: 14px 0; }
+  footer { margin-top: 26px; border-top: 1px solid #e3e3e8; padding-top: 10px;
+           font-size: 11px; color: #8a8a94; }
+  code { background: #f4f4f6; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+  @media print { body { padding: 0; } .wrap { max-width: none; } }
+</style></head><body><div class="wrap">
+
+<header>
+  <h1>ElevenLabs 计费对数报告</h1>
+  <div class="sub">模型 <b>eleven_v3</b> ｜ 音色 （不限） ｜ 生成时间 2026-10-20 16:42 ｜ 模式 复盘（仅历史日志）</div>
+</header>
+
+<div class="verdict">
+  <b>✓ 三段一致，计费可复算（未含回传字符数）</b>
+  <p>全部 3 笔历史样本中，计费字符数、日志 quota 与折算金额完全对齐（最大偏差 0.0000%）。本次为复盘模式，无响应头回传字符数，故未校验第②段；需完整四段请用实测模式重跑。</p>
+</div>
+
+<h2>一、三段数字（复盘模式无第②段） （3 笔合计）</h2>
+<table>
+  <tr><th class="l">环节</th><th class="l">来源</th><th>本次取值</th></tr>
+  <tr><td class="l">① 发送字符数</td><td class="l">客户端请求 input 长度</td><td>28</td></tr>
+  <tr><td class="l">② 回传字符数</td><td class="l">响应头 X-Usage-Input-Characters</td><td>—</td></tr>
+  <tr><td class="l">③ 计费字符数</td><td class="l">new-api 日志 prompt_tokens</td><td>28</td></tr>
+  <tr><td class="l">④ 扣减额度</td><td class="l">new-api 日志 quota</td><td>1120</td></tr>
+  <tr><td class="l">⑤ 折算金额</td><td class="l">quota ÷ QuotaPerUnit</td><td>0.002240 USD</td></tr>
+  <tr><td class="l">⑥ 官方应收</td><td class="l">字符 ÷ 1000 × 单价</td><td>0.002240 USD</td></tr>
+</table>
+<p class="note">本次为复盘模式：②（响应头回传字符数）无数据，故未校验 ①→② 与 ②→③ 两环；已校验的是 ③×ModelRatio = ④（倍率正确）与 ⑤≈⑥（与官方计价一致）。①→② 与 ②→③ 需用实测模式重跑才能确认。</p>
+
+<h2>二、逐笔明细</h2>
+<table>
+  <tr>
+    <th>#</th><th>日志</th><th>发送</th><th>回传</th><th>计费字符</th>
+    <th>quota</th><th>应缴</th><th>偏差</th><th>耗时</th>
+  </tr>
+  <tr><td>1</td><td>43</td><td>2</td><td>-</td><td>2</td><td>80</td><td>80</td><td class='ok'>一致</td><td>-</td></tr>
+  <tr><td>2</td><td>44</td><td>13</td><td>-</td><td>13</td><td>520</td><td>520</td><td class='ok'>一致</td><td>-</td></tr>
+  <tr><td>3</td><td>45</td><td>13</td><td>-</td><td>13</td><td>520</td><td>520</td><td class='ok'>一致</td><td>-</td></tr>
+</table>
+<p class="note">实测模式下「发送」为本次请求字符数；复盘模式下取自历史日志。</p>
+
+<h2>三、环境参数</h2>
+<table class="kv">
+  <tr><td>模型倍率 ModelRatio</td><td>40　（隐含 $0.0800 / 千字符）</td></tr>
+  <tr><td>音频倍率 AudioRatio</td><td>0</td></tr>
+  <tr><td>QuotaPerUnit</td><td>500000　（1 USD = 500000 quota）</td></tr>
+  <tr><td>渠道</td><td>#1 elevenlabs-adapter</td></tr>
+  <tr><td>计费公式</td><td>quota = 计费字符数 × ModelRatio × GroupRatio（group=1）</td></tr>
+</table>
+
+
+
+<h2>四、结论与建议</h2>
+<p class="note">倍率与计费口径自洽。建议：①把本报告作为接入验收附件留存；②每月调价后用同一命令重跑一次；③新增模型上架前先跑一遍 12 项自检。 ⑤本报告为复盘模式，未校验适配器回传字符数；正式对外计费前请用实测模式重跑一次。</p>
+
+<footer>
+  本报告由 <code>scripts/reconcile.py</code> 于 2026-10-20 16:42 生成，数据取自 new-api 历史日志（无响应头），可复核。<br>
+  复现命令：<code>python3 scripts/reconcile.py --db &lt;your-new-api-db&gt; --model eleven_v3 --from-logs</code><br>
+  单价随 ElevenLabs 官方调整而变，跨月对账请以当期官方定价为准。
+</footer>
+
+</div></body></html>

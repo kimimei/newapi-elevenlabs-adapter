@@ -1,0 +1,17 @@
+# 统一换行：仓库与检出都使用 LF
+# 否则 Windows 上 autocrlf 会把 .sh 转成 CRLF，部署到 Linux 报
+#   /usr/bin/env: 'bash\r': No such file or directory  （即 ^M 问题）
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.py   text eol=lf
+*.md   text eol=lf
+*.json text eol=lf
+
+# 二进制，别做换行转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.mp3 binary
+*.wav binary

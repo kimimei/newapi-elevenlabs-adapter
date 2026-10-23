@@ -1,0 +1,117 @@
+{
+  "version": 2,
+  "_comment": "engines = 标准接入项（默认 /v1/models 只有这些）；packs = 可选补充包（音色/场景封装），由 ADAPTER_PRESETS 决定是否出现在模型列表里。注意：包未启用时别名仍可调用（只有列举被隐藏），以保证已注册的渠道不会中断。",
+
+  "engines": {
+    "eleven_v4": {
+      "label": "情感 / 对话首选（普通话）",
+      "price_per_1k_chars": 0.08,
+      "model_ratio": 40,
+      "note": "口音会被标准化，台湾腔场景勿用"
+    },
+    "eleven_v3": {
+      "label": "中文最稳，台湾腔唯一可用引擎",
+      "price_per_1k_chars": 0.08,
+      "model_ratio": 40
+    },
+    "eleven_multilingual_v2": {
+      "label": "经典多语言，保守兜底",
+      "price_per_1k_chars": 0.08,
+      "model_ratio": 40
+    },
+    "eleven_turbo_v2_5": {
+      "label": "低成本档（情感扁平）",
+      "price_per_1k_chars": 0.04,
+      "model_ratio": 20,
+      "note": "语气助词会被实词化，口语化内容勿用"
+    },
+    "eleven_flash_v2_5": {
+      "label": "超低延迟档（逐字顿出）",
+      "price_per_1k_chars": 0.04,
+      "model_ratio": 20,
+      "note": "流畅度不达标，不适合配音"
+    }
+  },
+
+  "packs": {
+    "compat": {
+      "label": "OpenAI 兼容模型名",
+      "enabled_by_default": false,
+      "models": {
+        "tts-1": {"model": "eleven_multilingual_v2", "label": "OpenAI 经典名"},
+        "tts-1-hd": {"model": "eleven_multilingual_v2", "label": "OpenAI 高清名"},
+        "elevenlabs-tts": {"model": "eleven_multilingual_v2", "label": "通用别名"},
+        "eleven-flash": {"model": "eleven_flash_v2_5", "label": "Flash 别名"},
+        "eleven-turbo": {"model": "eleven_turbo_v2_5", "label": "Turbo 别名"}
+      }
+    },
+
+    "en": {
+      "label": "英文音色别名",
+      "enabled_by_default": false,
+      "models": {
+        "eleven-rachel": {"voice_id": "21m00Tcm4TlvDq8ikWAM", "model": "eleven_multilingual_v2", "label": "Rachel 女声"},
+        "eleven-george": {"voice_id": "JBFqnCBsd6RMkjVDRZzb", "model": "eleven_multilingual_v2", "label": "George 男声"},
+        "eleven-adam": {"voice_id": "pNInz6obpgDQGcFmaJgB", "model": "eleven_multilingual_v2", "label": "Adam 男声"},
+        "eleven-elli": {"voice_id": "MF3mGyEYCl7XYWbV9V6O", "model": "eleven_multilingual_v2", "label": "Elli 女声"}
+      }
+    },
+
+    "cn": {
+      "label": "中文场景音色包（普通话 8 音色 × 拼音/中文双名）",
+      "enabled_by_default": false,
+      "models": {
+        "zh-boyin": {"voice_id": "4AfodMgwXps9oZFhHzoj", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "播音女声"},
+        "zh-pangbai": {"voice_id": "hFamrilbAE6WDMtWgKvu", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "旁白男声"},
+        "zh-youshengshu": {"voice_id": "007rapvffUWW4JvRagws", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "有声书沉稳男声"},
+        "zh-shangwu": {"voice_id": "MI36FIkp9wRP7cpWKPTl", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "商务温暖男声"},
+        "zh-duihua": {"voice_id": "UFDAUkGzdLAEJlINT3Fx", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "对话口播男声"},
+        "zh-qinqie": {"voice_id": "bhJUNIXWQQ94l8eI2VUf", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "亲切直播女声"},
+        "zh-boke": {"voice_id": "lt7GBaCoAHWbT7JSZ5Xs", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "磁性播客男声"},
+        "zh-yingshi": {"voice_id": "PSvrh6w41Qm19oaaHLca", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "影视通用女声"},
+        "zh-播音": {"voice_id": "4AfodMgwXps9oZFhHzoj", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "播音女声"},
+        "zh-旁白": {"voice_id": "hFamrilbAE6WDMtWgKvu", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "旁白男声"},
+        "zh-有声书": {"voice_id": "007rapvffUWW4JvRagws", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "有声书沉稳男声"},
+        "zh-商务": {"voice_id": "MI36FIkp9wRP7cpWKPTl", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "商务温暖男声"},
+        "zh-对话": {"voice_id": "UFDAUkGzdLAEJlINT3Fx", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "对话口播男声"},
+        "zh-亲切": {"voice_id": "bhJUNIXWQQ94l8eI2VUf", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "亲切直播女声"},
+        "zh-播客": {"voice_id": "lt7GBaCoAHWbT7JSZ5Xs", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "磁性播客男声"},
+        "zh-影视": {"voice_id": "PSvrh6w41Qm19oaaHLca", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "影视通用女声"}
+      }
+    },
+
+    "tw": {
+      "label": "台湾口音补充包（默认引擎固定 v3）",
+      "enabled_by_default": false,
+      "models": {
+        "zh-tw-ladaisy": {"voice_id": "8RCmdqih4CKjJ7Bd3ZxT", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "台湾甜嗲女声（机车感）"},
+        "zh-tw-ziyue": {"voice_id": "5qr5FEpvZGzmVOPBS55W", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "台湾自然女声（台湾腔）"},
+        "zh-台湾甜嗲": {"voice_id": "8RCmdqih4CKjJ7Bd3ZxT", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "台湾甜嗲女声（机车感）"},
+        "zh-台湾自然": {"voice_id": "5qr5FEpvZGzmVOPBS55W", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "台湾自然女声（台湾腔）"}
+      }
+    }
+  },
+
+  "voices": {
+    "rachel": "21m00Tcm4TlvDq8ikWAM",
+    "george": "JBFqnCBsd6RMkjVDRZzb",
+    "adam": "pNInz6obpgDQGcFmaJgB",
+    "antoni": "ErXwobaYiN019PkySvjV",
+    "bella": "EXAVITQu4vr4xnSDxMaL",
+    "domi": "AZnzlk1XvdvUeBnXmlld",
+    "elli": "MF3mGyEYCl7XYWbV9V6O",
+    "josh": "TxGEqnHWrfWFTfGW9XjX",
+    "arnold": "VR6AewLTigWG4xSOukaG",
+    "sam": "yoZ06aMxZJJ28mfd3POQ",
+    "yun": "4AfodMgwXps9oZFhHzoj",
+    "pangge": "hFamrilbAE6WDMtWgKvu",
+    "bo": "007rapvffUWW4JvRagws",
+    "evan": "MI36FIkp9wRP7cpWKPTl",
+    "lin": "UFDAUkGzdLAEJlINT3Fx",
+    "amy": "bhJUNIXWQQ94l8eI2VUf",
+    "xinghe": "lt7GBaCoAHWbT7JSZ5Xs",
+    "anna": "PSvrh6w41Qm19oaaHLca",
+    "ladaisy": "8RCmdqih4CKjJ7Bd3ZxT",
+    "ziyue": "5qr5FEpvZGzmVOPBS55W"
+  }
+}

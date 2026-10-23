@@ -1,0 +1,22 @@
+services:
+  elevenlabs-adapter:
+    build: .
+    image: elevenlabs-adapter:latest
+    container_name: elevenlabs-adapter
+    # 让 uvicorn 能收到 SIGTERM，否则 docker stop 要等 10 秒超时
+    init: true
+    ports:
+      # 左边是宿主机端口（改 .env 里的 ADAPTER_PORT），右边固定 8123
+      - "${ADAPTER_PORT:-8123}:8123"
+    env_file:
+      - .env
+    environment:
+      # 容器内永远监听 8123，避免改 ADAPTER_PORT 后内外端口不一致
+      ADAPTER_HOST: 0.0.0.0
+      ADAPTER_PORT: "8123"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

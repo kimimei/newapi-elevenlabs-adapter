@@ -1,0 +1,37 @@
+# 环境与密钥
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv*/
+venv*/
+env/
+.pytest_cache/
+
+# 产物
+*.mp3
+*.wav
+out.*
+verify_*.mp3
+zh_verify.mp3
+
+# 对数报告的 JSON 副产物（含本机绝对路径，不入仓）
+docs/*.json
+report.json
+report.html
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 计费账本与所有日志/归档（含客户 IP / 密钥前几位，绝不能入库）
+# 整目录排除：归档里的 MANIFEST.json 等非 .jsonl 文件同样不能入库
+logs/
+*.jsonl
+
+# 进程/编辑器残留：.bak 备份、运行日志
+*.bak
+*.log

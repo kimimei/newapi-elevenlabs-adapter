@@ -1,0 +1,3 @@
+# 仅测试用。生产镜像不装这个（Dockerfile 只装 requirements.txt）。
+-r requirements.txt
+pytest>=8.0,<10.0
