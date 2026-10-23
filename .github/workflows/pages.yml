@@ -1,10 +1,12 @@
 name: Pages
 
 # 把仓库变成可访问的静态站点，用来「在线听」examples/demo 里的样本。
-# 说明为什么不用 Settings 里点「Deploy from a branch」：
-#   - 分支部署会把整个仓库当站点根，但每次改版都得回到网页设置里确认
-#   - 这里用 Actions 组装 + 部署，`enablement: true` 能在首次运行时自动开启 Pages，
-#     等于把「记得去点两下」这件事交给流水线
+#
+# 前置条件（一次性，必须在网页上手动做）：
+#   Settings → Pages → Build and deployment → Source 选 "GitHub Actions"。
+#   不能指望 `enablement: true` 代劳 —— GITHUB_TOKEN 拿不到创建 Pages 站点所需的
+#   admin 权限，未开启时这里会直接报 "Resource not accessible by integration"。
+#   这一步没法从流水线取得，写在这儿免得下次又去试。
 #
 # 站点根保持仓库结构，所以试听页地址是：
 #   https://<owner>.github.io/<repo>/examples/demo/
@@ -40,7 +42,8 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
-          # 仓库还没开 Pages 时，这一步会去调 API 打开它
+          # 站点已在上面的前置条件里手动开启。这里保留 enablement 作为兜底：
+          # 已启用时它是幂等的，不会重复创建。
           enablement: true
 
       - name: Assemble site
