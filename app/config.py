@@ -48,11 +48,11 @@ T5 长文本异步任务（默认全关）
                               normalize = 在 safe 基础上再去 Markdown 标记
   ⚠️ 清理**不改变计费基数**。计费基数由 ADAPTER_BILLING_MODE 决定：
      input 口径下按客户提交的原文计费（与 new-api 同源），清理掉的字符
-     是我方的上游成本节省，不是给客户的折扣。见 ADAPTER_BILLING_MODE 说明。
+     是我方的上游成本节省，不是计费折扣。见 ADAPTER_BILLING_MODE 说明。
 
 毛利换算
   ADAPTER_UP_CREDITS_PER_USD  上游积分兑美元（默认 0 = 不算毛利率）
-  ADAPTER_CHARS_PER_USD       我方售价每美元多少字符（默认 0 = 不算毛利率）
+  ADAPTER_CHARS_PER_USD       计费单价每美元多少字符（默认 0 = 不算毛利率）
 """
 import os
 
@@ -121,7 +121,7 @@ BILLING_LOG_OFF = os.getenv("ADAPTER_BILLING_LOG_OFF", "").lower() in ("1", "tru
 #                  （prompt_tokens = RuneCount(input)），账本必须跟它同源，
 #                  否则客户拿中转后台的账单一对就发现差额。
 #                  清理掉的字符不收费，但那是**我方的成本节省**（上游只收 sent），
-#                  不是给客户的让利 —— 两者不可混为一谈。
+#                  不是计费折扣 —— 两者不可混为一谈。
 #
 #   chars          按实际合成量收费。理由：客户肉眼数到的就是这个数，
 #                  账单自解释性最好。代价：与 new-api 口径不一致，产生 raw−sent 差额，
@@ -139,7 +139,7 @@ BILLING_BASE_SENT = "chars"
 # UP_CREDITS_PER_USD：ElevenLabs character-cost 积分兑美元。
 #   官方 Creator 档 $22 / 100,000 credits = 4545.45 积分/美元。
 #   按你实际套餐改（不同档位、不同折扣价差别很大）。
-# CHARS_PER_USD：我方售价，每美元卖多少字符。
+# CHARS_PER_USD：计费单价，每美元卖多少字符。
 #   例：$0.08 / 千字符 → 1 / 0.08 * 1000 = 12500 字符/美元。
 #   这个数必须与 new-api 侧配置的模型倍率保持一致，否则算出来的是"会计毛利率"
 #   而不是"真实毛利率"。

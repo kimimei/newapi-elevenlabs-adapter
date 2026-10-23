@@ -258,7 +258,7 @@ async def audio_speech(req: SpeechRequest, request: Request):
     #                RuneCount(input) 逐字相等）→ input 口径的计费依据
     #   sent_chars = 实际送上游合成的长度 → **成本依据**（上游只收这个）
     # 清理掉的字符（raw − sent）不再计费，但那部分**我方上游也不付钱**，
-    # 所以它是我方成本节省，**不是给客户的让利**。两者混为一谈就会算错毛利。
+    # 所以它是上游成本节省，**不是计费折扣**。两者混为一谈就会算错单位成本。
     # 档位：客户可通过 text_clean 参数主动加强（normalize），但不能削弱服务端下限。
     clean_mode = text_clean.resolve_mode(req.text_clean, TEXT_CLEAN)
     text, clean_report = text_clean.clean(req.input, clean_mode)
@@ -438,8 +438,8 @@ async def audio_speech(req: SpeechRequest, request: Request):
         resp.headers["X-Text-Sent-Chars"] = str(sent_chars)
         # 清理掉的字符数。
         # ⚠️ 语义随口径变：input 口径下这部分**仍然计入客户账单**
-        #（与 new-api 一致），但上游只收 sent —— 所以它是我方成本节省，
-        # 不是给客户的让利。别把它当成"客户少付了这么多"。
+        #（与 new-api 一致），但上游只收 sent —— 所以它是上游成本节省，
+        # 不是计费折扣。别把它当成"计费差额"。
         resp.headers["X-Text-Saved-Chars"] = str(max(0, raw_chars - sent_chars))
     if speed_clamped:
         resp.headers["X-Speed-Clamped"] = str(speed_used)
@@ -581,8 +581,8 @@ async def usage(days: int = 30):
 
     ⚠️ `saved_chars` 的语义随计费口径变（`bill_source` 可查当前口径）：
       input 口径（默认）下，客户按 `in_chars` 付费（与 new-api 一致），
-      而 `saved_chars` = in_chars − sent_chars 是**我方上游成本的节省**，
-      **不是**客户少付的钱。把两者混为一谈会得出错误的毛利。
+      而 `saved_chars` = in_chars − sent_chars 是**上游成本的节省**，
+      **不是**计费差额。把两者混为一谈会得出错误的单位成本。
       chars 口径下，saved_chars 才是真正的「没向客户收的部分」。
     """
     days = max(1, min(days, BILLING_LOG_DAYS))
@@ -634,14 +634,14 @@ async def usage(days: int = 30):
             for r in by_token
         ],
         # 口径必须跟着 BILLING_MODE 走：默认 input 下「计费 = 提交的原始字符数」，
-        # saved_chars 仍然计入账单（是上游成本节省，不是客户折扣）。
+        # saved_chars 仍然计入账单（是上游成本节省，不是计费折扣）。
         # 写死成 chars 的说法会让对账的人以为这部分没收费，正好反了。
         "billing_mode": BILLING_MODE,
         "note": (
             "计费 = 客户提交的原始字符数（与 new-api 一致）；"
-            "saved_chars 是清理掉、上游没有付钱的部分，仍计入账单"
+            "saved_chars 是其中被清理掉、仍计入账单的部分"
             if BILLING_MODE == "input"
-            else "计费 = 实际合成字符数；saved_chars 是清理帮你省下的、没有向你收费的部分"
+            else "计费 = 实际合成字符数；saved_chars 是清理掉的字符数，未计入账单"
         ),
     }
 

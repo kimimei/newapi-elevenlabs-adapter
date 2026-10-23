@@ -75,8 +75,8 @@ def test_billing_uses_input_length(monkeypatch, ledger):
     "你\u200b好\u200b世界" 客户提交 6 个字符，new-api 就收 6 个
     （RuneCount(input)，不 strip、不剔除零宽）。我们记 6，两边逐笔相等。
 
-    实际只合成 4 个（sent=4）—— 差的 2 个是**我方上游成本的节省**，
-    不是给客户的让利。账本两个数都留，毛利才算得准。
+    实际只合成 4 个（sent=4）—— 差的 2 个是**上游成本的节省**，
+    不是计费折扣。账本两个数都留，毛利才算得准。
     """
     r = _post(monkeypatch, "你\u200b好\u200b世界")
     assert r.status_code == 200

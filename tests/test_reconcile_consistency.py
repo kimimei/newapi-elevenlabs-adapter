@@ -12,7 +12,7 @@
 
 **sent_chars 是什么**：清理后实际送上游合成的字符数。它是**成本依据**
 （上游只按 sent 收钱），不是计费依据。`raw − sent` = 清理掉的字符 =
-**我方上游成本的节省**，不是给客户的让利 —— 两者混为一谈就会算错毛利。
+**上游成本的节省**，不是计费折扣 —— 两者混为一谈就会算错单位成本。
 
 这个文件的作用：以后任何人想改计费口径、改成"看起来更省客户钱"，
 或者在字符数上做手脚，都会先红一片。
@@ -183,13 +183,13 @@ def test_bill_rule_contains_no_hidden_adjustment(monkeypatch, ledger):
 
 
 def test_saved_chars_is_cost_saving_not_discount(monkeypatch, ledger):
-    """清理掉的字符是**我方成本节省**，不是给客户的折扣。
+    """清理掉的字符是**上游成本节省**，不是计费折扣。
 
     账本里 raw − sent 这段：
       - 客户仍按 raw 付费（与 new-api 一致）
       - 上游只收 sent
 
-    所以 X-Text-Saved-Chars 存在，但它不等于「客户少付了这么多」。
+    所以 X-Text-Saved-Chars 存在，但它不等于「计费差额」。
     这条测试钉住这个语义，避免日后被当成让利来宣传。
     """
     r = _post(monkeypatch, "你\u200b好\u200b世界")   # raw=6, sent=4

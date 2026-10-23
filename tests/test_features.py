@@ -263,11 +263,11 @@ def test_mock_wav_request_has_no_mismatch_header():
     assert "X-Mock-Format-Mismatch" not in r.headers
 
 
-def test_version_matches_release_checklist():
-    """main.py 的 version 与 RELEASE_CHECKLIST 声明的适用版本不能漂移。"""
+def test_version_matches_changelog():
+    """main.py 的 version 必须在 CHANGELOG.md 中有对应条目，避免版本号漂移。"""
     from pathlib import Path
     import re
     root = Path(__file__).resolve().parent.parent
     ver = re.search(r'version="([^"]+)"', (root / "app" / "main.py").read_text("utf-8")).group(1)
-    txt = (root / "RELEASE_CHECKLIST.md").read_text("utf-8")
-    assert "v" + ver in txt, "app/main.py version=%s，但发布清单未提及" % ver
+    txt = (root / "CHANGELOG.md").read_text("utf-8")
+    assert "## [%s]" % ver in txt, "app/main.py version=%s，但 CHANGELOG 没有 ## [%s] 条目" % (ver, ver)

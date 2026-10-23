@@ -230,7 +230,11 @@ python3 scripts/reconcile_billing.py --help-ledger
 |---|---|---|
 | **L1** | 账本 `bill_chars` vs new-api `logs.prompt_tokens` | 中转站漏记 / 重复记账 |
 | **L2** | 账本 `up_credits` vs 上游 `/v1/history` | 上游扣费异常 / Key 被挪用 / 有别的服务共用 Key |
-| **L3** | `bill_chars` × 售价 vs `up_credits` × 成本 | 实际毛利率 |
+| **L3** | `up_credits` 折算 USD vs `bill_chars` 折算 USD | 上游涨价、定价倒挂 |
+
+> L3 需要你在 `.env` 填 `ADAPTER_UP_CREDITS_PER_USD` / `ADAPTER_CHARS_PER_USD` 才会计算；
+> 不填就返回 `null`。**宁可不给，也不给一个错的** —— 这两个数一个是上游成本单价、
+> 一个是你的计费单价，量纲不同，未配置时无法换算。
 
 **典型输出：**
 
@@ -239,17 +243,16 @@ python3 scripts/reconcile_billing.py --help-ledger
   请求      : 3（成功 2 / 失败 1）
   计费字符  : 6000
   上游积分  : 1443
-  毛利率    : 25.0%（由你的 CHARS_PER_USD / UP_CREDITS_PER_USD 决定）
 
-【失败请求】1 笔，计费字符 3000
+【失败请求】1 笔，计费字符 0（失败不收费）
   上游积分未回传（超时类请求通常拿不到 character-cost）
 
 【L1】账本 ↔ new-api 记账
   账本计费字符 : 6000    new-api 记账 : 6000    差额 +0    结论 ✅ 对平
 
-【L3】毛利
-  单位成本比       : 0.481 积分/字符
-  毛利率           : 25.0%（示例值，取决于你配置的售价与成本）
+【L3】单位成本比
+  单位成本比 : 0.481 积分/字符
+  收入成本比 : null（未配置 ADAPTER_*_PER_USD）
 ```
 
 **账本字段：**

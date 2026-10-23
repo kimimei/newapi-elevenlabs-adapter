@@ -101,7 +101,7 @@ def bill_chars_by_mode(in_chars: int, sent_chars: int, up_credits: int | None,
 
     选 input 的真正理由不是"对客户好"，而是**它与真实扣费一致**：
     清理掉的字符不再计费，但那部分**我方上游也不付钱**（上游只收 sent），
-    所以它是我方成本节省，**不是给客户的让利**。两者混为一谈就会算错毛利。
+    所以它是上游成本节省，**不是计费折扣**。两者混为一谈就会算错单位成本。
 
     **失败请求一律计 0**：new-api 对非 200 响应不扣费，账本若仍计费，
     两边永远对不上，只能靠"容差"自欺欺人。
@@ -116,7 +116,7 @@ def bill_chars_by_mode(in_chars: int, sent_chars: int, up_credits: int | None,
             return 0, "chars"
         return sent_chars, "chars"
     # 默认 input：与 new-api 同源。清理掉的字符同样计费，
-    # 但那是我方上游成本的节省，不是给客户的折扣。
+    # 但那是上游成本的节省，不是计费折扣。
     if in_chars <= 0:
         return 0, "input"
     return in_chars, "input"
@@ -153,7 +153,7 @@ def rule_text(n: int, raw_chars: int, up_credits: int | None, status: int,
         # input 口径：与 new-api 同源，账单一字不差
         s = "status=200 mode=input bill=len(input)=%d" % n
         if raw_chars != n:
-            s += "（合成 %d 字符，差额为我方成本节省）" % raw_chars
+            s += "（原始输入 %d 字符，已剔除不可朗读字符）" % raw_chars
     else:
         # chars 口径：按实际合成量收费
         s = "status=200 mode=chars bill=sent=%d" % n
@@ -214,7 +214,7 @@ def record(
         in_chars   客户提交的量 —— 计费依据（input 口径），也是与 new-api 对账的锚
         sent_chars 实际送上游合成的量 —— **成本依据**（上游只收这个）
 
-    两者之差 = 清理掉的字符 = 我方上游成本的节省，**不是给客户的让利**。
+    两者之差 = 清理掉的字符 = 上游成本的节省，**不是计费折扣**。
     账本若只留一个数，毛利就算不准了。
     """
     if BILLING_LOG_OFF:
@@ -268,7 +268,7 @@ def stats(day: str | None = None) -> dict:
 
     ⚠️ 语义随口径变，别读错：
       input 口径（默认）下，客户按 in_chars 付费，这部分**仍然收客户的钱**，
-      但上游只收 sent —— 所以 saved_chars 是**我方成本节省**，不是客户折扣。
+      但上游只收 sent —— 所以 saved_chars 是**上游成本节省**，不是计费折扣。
       chars 口径下，它才是真正的"没向客户收的部分"。
 
     ## gross_margin_ratio 的口径说明（2026-10-22 更正）
@@ -427,7 +427,7 @@ def usage_by_token(days: int = 30) -> list[dict]:
     返回按节省量降序排列的列表。
 
     `saved_chars` 的语义随口径变，别读错：
-      input 口径（默认）下客户按 in_chars 付费，这段是**我方成本节省**；
+      input 口径（默认）下客户按 in_chars 付费，这段是**上游成本节省**；
       chars 口径下它才是真正的「没向客户收的部分」。
     """
     from datetime import date, timedelta

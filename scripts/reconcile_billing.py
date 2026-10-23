@@ -241,7 +241,7 @@ def main():
     print("  实际合成  : %d（清理后送上游 = 成本基数）" % sum_sent)
     print("  计费字符  : %d" % sum_bill)
     if sum_in and sum_sent:
-        print("  清理节省  : %d 字符（%.1f%%）→ 我方上游成本节省"
+        print("  清理节省  : %d 字符（%.1f%%）→ 上游成本节省"
               % (sum_in - sum_sent, (sum_in - sum_sent) * 100.0 / sum_in))
     missing_up = any(r.get("up_credits") is None for r in rows)
     print("  上游积分  : %d%s" % (sum_up, "（部分请求未取到）" if missing_up else ""))

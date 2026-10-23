@@ -285,7 +285,7 @@ def test_leading_trailing_whitespace_not_billed(tmp_path_ledger, monkeypatch):
     它就收 3 个字符的钱。我们账本跟它一致，所以也是 3。
 
     但上游只合成 2 个字符（尾随换行不发音），所以那 1 个字符的差额
-    是**我方上游成本的节省**，不是多收客户。
+    是**上游成本的节省**，不是多收客户。
     """
     from fastapi.testclient import TestClient
     from app import main as m
