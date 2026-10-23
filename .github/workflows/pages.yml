@@ -1,0 +1,64 @@
+name: Pages
+
+# 把仓库变成可访问的静态站点，用来「在线听」examples/demo 里的样本。
+# 说明为什么不用 Settings 里点「Deploy from a branch」：
+#   - 分支部署会把整个仓库当站点根，但每次改版都得回到网页设置里确认
+#   - 这里用 Actions 组装 + 部署，`enablement: true` 能在首次运行时自动开启 Pages，
+#     等于把「记得去点两下」这件事交给流水线
+#
+# 站点根保持仓库结构，所以试听页地址是：
+#   https://<owner>.github.io/<repo>/examples/demo/
+# 这样 README 里的相对链接和线上路径是同一套，不用维护两份。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "examples/demo/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          # 仓库还没开 Pages 时，这一步会去调 API 打开它
+          enablement: true
+
+      - name: Assemble site
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          # 只排除版本库与本地缓存，其余按仓库原样发布 —— 这是公开仓库，
+          # 敏感项已由 scripts/release_check.py 在 CI 里挡过一道
+          rsync -a --exclude '.git' --exclude '__pycache__' --exclude '.venv*' \
+                --exclude 'logs' ./ _site/
+          test -f _site/examples/demo/index.html
+          ls -lh _site/examples/demo/ | head
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
