@@ -16,6 +16,8 @@
 - **中文场景包**：播音 / 旁白 / 有声书 / 商务 / 对话 / 亲切 / 播客 / 影视，含台湾口音双音色
 - **文本归一化**：零宽字符、多余空白清理，清理量单独记账，不影响计费基数
 - **自检工具链**：`scripts/preflight.py`（12 项接入体检）、`scripts/reconcile.py`（HTML 对数报告）、`scripts/release_check.py`（发布门禁）
+- **可直接运行的示例**：`examples/` 下 Python（标准库 / 官方 SDK）、Node、curl 三套脚本，含长稿分段与异步任务，输出计费凭据并给出具体排错方向
+- **演示音频**：`examples/demo/` 6 段真实合成样本（新闻 / 带货 / 诗词 / 悬疑 / 情绪骤变 / 英文），附文案原文、字符数与复现命令，可在 README 首屏直接试听
 - **静态试音页**：`static/index.html`，可独立托管做售前页
 
 ### 修复
@@ -29,6 +31,7 @@
 
 - `Dockerfile` 新增 `ARG PIP_INDEX_URL`，`docker-compose.yml` 透传；境外默认 PyPI，国内网络首次构建可 `PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple bash scripts/up.sh ...`（实测从 16 分钟降到 109 秒）。
 - 发布门禁的虚拟环境识别由固定目录名改为前缀匹配（`.venv*` / `venv*` / `env`），避免把 site-packages 里的示例 IP 判成泄露。
+- 发布门禁的音频规则从「一律拦截」改为「只放行 `examples/demo/`」，并对**单文件 ≤800 KB、合计 ≤4 MB、文件名必须登记在 manifest** 三处做检查 —— 演示音频是资产，测试产物才是垃圾，靠白名单放行等于把门拆了。
 
 ### 已知限制
 

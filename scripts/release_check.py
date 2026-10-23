@@ -51,6 +51,13 @@ SKIP_DIR_PREFIXES = (".venv", "venv")
 SKIP_EXT = {".png", ".jpg", ".jpeg", ".gif", ".mp3", ".wav", ".zip", ".ico", ".pyc"}
 SKIP_FILES = {".gitignore", ".dockerignore"}
 
+# 演示音频：唯一允许入仓的音频目录，且受体积与「必须登记」两条约束。
+# 见 rule_no_media —— 拦的是「测试产物误入」，不是拦演示本身。
+DEMO_AUDIO_DIR = "examples/demo"
+DEMO_AUDIO_MANIFEST = "examples/demo/README.md"
+DEMO_AUDIO_MAX_KB = 800          # 单文件；128kbps 单声道约 1 分钟音频
+DEMO_AUDIO_TOTAL_MAX_KB = 4 * 1024
+
 
 def _keep_dir(name):
     return name not in SKIP_DIRS and not name.startswith(SKIP_DIR_PREFIXES)
@@ -185,13 +192,46 @@ def rule_no_keys(r):
 
 
 def rule_no_media(r):
-    """仓库里不该有测试音频。"""
+    """仓库里不该有测试音频 —— 但演示音频要放行，且放行是有条件的。
+
+    这条规则的原始动机是「测试产物误入仓库」：体积大、版权不明、没人知道它是谁。
+    演示音频恰好相反 —— 它是给访问者听的样本，是资产不是垃圾。
+    所以不是简单加个白名单，而是把「当初担心的两件事」变成可检查的约束：
+
+    - 体积：单文件 ≤ 800 KB，合计 ≤ 4 MB（超了说明码率或时长失控）
+    - 出处：文件名必须出现在 examples/demo/README.md 里（半年后还知道它是谁）
+    """
+    manifest_path = os.path.join(ROOT, DEMO_AUDIO_MANIFEST)
+    manifest = ""
+    if os.path.exists(manifest_path):
+        manifest = _read(manifest_path) or ""
+    total_kb = 0.0
+
     for dirpath, dirnames, filenames in os.walk(ROOT):
         dirnames[:] = [d for d in dirnames if _keep_dir(d)]
         for name in filenames:
-            if os.path.splitext(name)[1].lower() in (".mp3", ".wav"):
-                rel = os.path.relpath(os.path.join(dirpath, name), ROOT).replace("\\", "/")
-                r.add("BLOCK", "测试音频入仓", rel, "发布前请删除（体积 + 版权）")
+            if os.path.splitext(name)[1].lower() not in (".mp3", ".wav"):
+                continue
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, ROOT).replace("\\", "/")
+            if not rel.startswith(DEMO_AUDIO_DIR + "/"):
+                r.add("BLOCK", "测试音频入仓", rel,
+                      "发布前请删除（体积 + 版权）；演示音频只允许放在 %s/" % DEMO_AUDIO_DIR)
+                continue
+
+            kb = os.path.getsize(full) / 1024.0
+            total_kb += kb
+            if kb > DEMO_AUDIO_MAX_KB:
+                r.add("BLOCK", "演示音频过大", rel,
+                      "%.0f KB 超过 %d KB，请降码率或裁短" % (kb, DEMO_AUDIO_MAX_KB))
+            if name not in manifest:
+                r.add("WARN", "演示音频未登记", rel,
+                      "请写进 %s 的表格：场景、音色、文案" % DEMO_AUDIO_MANIFEST)
+
+    if total_kb > DEMO_AUDIO_TOTAL_MAX_KB:
+        r.add("BLOCK", "演示音频总量超限", DEMO_AUDIO_DIR,
+              "合计 %.1f MB，超过 %d MB" % (total_kb / 1024.0,
+                                            DEMO_AUDIO_TOTAL_MAX_KB // 1024))
 
 
 def _strip_md_quote_lines(s):
@@ -344,7 +384,50 @@ def self_test():
         print("反向验证失败：换成正常邮箱后仍被拦：%s" % r2.blocked)
         return 1
 
-    print("反证通过：5 类故意违规均被规则捕获；正向验证：正常邮箱放行")
+    # 正向验证 #2：演示音频既要放行，又不能变成后门。
+    # 删掉根目录那个违规 mp3，改成 examples/demo/ 下「体积达标 + 已登记」的一条，
+    # 规则必须完全不吭声；再把登记抹掉，必须降级成 WARN 而不是 BLOCK。
+    os.remove(os.path.join(fake_root, "a.mp3"))
+    demo_dir = os.path.join(fake_root, "examples", "demo")
+    os.makedirs(demo_dir)
+    with open(os.path.join(demo_dir, "ok.mp3"), "wb") as f:
+        f.write(b"x" * 1024)
+    manifest = os.path.join(demo_dir, "README.md")
+    with open(manifest, "w", encoding="utf-8") as f:
+        f.write("| ok.mp3 | 演示 |\n")
+
+    globals()["ROOT"] = fake_root
+    globals()["SELF"] = os.path.join(fake_root, "__none__")
+    try:
+        r3 = Result()
+        rule_no_media(r3)
+
+        with open(manifest, "w", encoding="utf-8") as f:
+            f.write("这里故意不提那个文件名\n")
+        r4 = Result()
+        rule_no_media(r4)
+
+        # 超限：单文件写 900 KB，必须 BLOCK
+        with open(os.path.join(demo_dir, "big.mp3"), "wb") as f:
+            f.write(b"x" * (900 * 1024))
+        r5 = Result()
+        rule_no_media(r5)
+    finally:
+        globals()["ROOT"] = old_root
+        globals()["SELF"] = old_self
+
+    if r3.blocked or r3.items:
+        print("正向验证失败：合格的演示音频仍被报警：%s" % r3.items)
+        return 1
+    if r4.blocked:
+        print("分级失败：未登记应只 WARN，不该 BLOCK：%s" % r4.blocked)
+        return 1
+    if not any(i["rule"] == "演示音频过大" for i in r5.items):
+        print("反证失败：超限音频没有被拦：%s" % r5.items)
+        return 1
+
+    print("反证通过：5 类故意违规均被规则捕获；"
+          "正向验证：正常邮箱、合格演示音频放行，未登记降级 WARN，超限仍 BLOCK")
     return 0
 
 

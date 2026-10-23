@@ -7,6 +7,20 @@
 
 把 ElevenLabs 包装成标准 OpenAI TTS 协议。任何支持 `POST /v1/audio/speech` 的中转站或客户端，**无需改一行代码**就能上架 ElevenLabs 音色。
 
+**先听 6 段。** 下面这些都是本仓库这条链路自己合成出来的声音，不是官网样本 —— 中文音准、情绪切换、英文韵律各一段，判断得比读文档快：
+
+| 场景 | 音色 | 时长 | 收听 |
+|---|---|---|---|
+| 新闻播报 | 云 `yun` | 15s | [▶ news_yun.mp3](examples/demo/news_yun.mp3) |
+| 直播带货 | 林 `lin` | 16s | [▶ livestream_lin.mp3](examples/demo/livestream_lin.mp3) |
+| 古风诗词 | 胖哥 `pangge` | 20s | [▶ poetry_pangge.mp3](examples/demo/poetry_pangge.mp3) |
+| 悬疑旁白 | 赵埃文 `evan` | 17s | [▶ suspense_evan.mp3](examples/demo/suspense_evan.mp3) |
+| **情绪骤变** | 林 `lin` | 14s | [▶ emotion_lin.mp3](examples/demo/emotion_lin.mp3) |
+| 英文播客开场 | Sarah | 22s | [▶ en_podcast_sarah.mp3](examples/demo/en_podcast_sarah.mp3) |
+
+> 第 5 条是全套里最值钱的一段：同一句话里走完**温柔 → 暴怒 → 愧疚**。
+> 文案原文、字符数与复现命令见 [`examples/demo/`](examples/demo/README.md)。
+
 **不是又一个协议转换 shim。** 协议翻译遍地都是，接上之后算错钱才是真问题：
 
 | 能力 | 说明 |
@@ -71,6 +85,7 @@ bash scripts/up.sh --key sk_你的ElevenLabsKey
 > ```
 
 完整逐步引导（含每步的预期输出与失败处理）见 **[`QUICKSTART.md`](QUICKSTART.md)**。
+想直接用代码调起来，跳到 **[`examples/`](examples/README.md)** —— 里面的脚本是先跑通再写文档的那一版。
 
 ---
 
@@ -377,6 +392,7 @@ python -m pytest tests -v
 |---|---|
 | [QUICKSTART.md](QUICKSTART.md) | **逐步部署引导**：前提检查、三种部署、接入、验证、排错 |
 | [USAGE_GUIDE.md](USAGE_GUIDE.md) | 调用方视角：请求示例、音色、错误处理 |
+| [examples/](examples/README.md) | **可直接运行的调用脚本**：Python / Node / curl，长稿分段与异步任务 |
 | [scripts/README.md](scripts/README.md) | 12 项自检 / 一页对数报告 / 三层对账工具 |
 | [SECURITY.md](SECURITY.md) | 部署边界、已修问题、已知限制 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 开发环境、测试、计费改动的额外要求 |

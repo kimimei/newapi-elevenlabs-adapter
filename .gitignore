@@ -17,6 +17,9 @@ env/
 out.*
 verify_*.mp3
 zh_verify.mp3
+# 演示音频例外：只放行 examples/demo/ 一个目录，体积与「必须登记」由
+# scripts/release_check.py 把关（单文件 ≤800KB、合计 ≤4MB、README 有记录）。
+!examples/demo/*.mp3
 
 # 对数报告的 JSON 副产物（含本机绝对路径，不入仓）
 docs/*.json
