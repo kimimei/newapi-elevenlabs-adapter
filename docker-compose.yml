@@ -1,10 +1,17 @@
 services:
   elevenlabs-adapter:
-    build: .
+    build:
+      context: .
+      args:
+        # 国内网络首次构建建议覆盖：PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
     image: elevenlabs-adapter:latest
     container_name: elevenlabs-adapter
     # 让 uvicorn 能收到 SIGTERM，否则 docker stop 要等 10 秒超时
     init: true
+    volumes:
+      # 账本落到宿主机，容器重建不丢；对账脚本直接读 ./logs/billing
+      - ./logs:/app/logs
     ports:
       # 左边是宿主机端口（改 .env 里的 ADAPTER_PORT），右边固定 8123
       - "${ADAPTER_PORT:-8123}:8123"

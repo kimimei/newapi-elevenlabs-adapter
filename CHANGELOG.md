@@ -2,6 +2,26 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 修复
+
+- **Docker 部署下账本写入被静默丢弃**：容器内 `/app/logs` 不存在且 `/app` 归 root，进程以 uid 10001 运行，
+  写账本抛 `PermissionError` 后只留一条 warning —— 服务一切正常但 `/v1/usage` 永远是 0。
+  现在镜像内预建 `/app/logs/billing` 并归 `adapter` 所有，`docker-compose.yml` 把 `./logs` 挂到容器，
+  `up.sh` 负责在宿主机建目录并 `chown 10001`（账本因此也能被 `scripts/reconcile.py` 直接读到）。
+- **`up.sh` 不收紧 `.env` 权限**：新生成或沿用的 `.env` 一律 `chmod 600`。此前是 644，
+  同机任何用户都能读走里面的上游 Key。
+- **`/v1/usage` 的 `note` 与计费口径矛盾**：写死成「计费 = 实际合成字符数」（chars 口径的说法），
+  但默认口径是 `input` —— 那句话会让对账的人以为 `saved_chars` 没收费，正好反了。
+  现按 `ADAPTER_BILLING_MODE` 输出对应措辞，并回传 `billing_mode` 字段。
+
+### 变更
+
+- `Dockerfile` 新增 `ARG PIP_INDEX_URL`，`docker-compose.yml` 透传；境外默认 PyPI，
+  国内网络首次构建可 `PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple bash scripts/up.sh ...`
+  （实测从 16 分钟降到 109 秒）。
+
 ## [0.1.0] - 2026-10-23
 
 首个公开版本。

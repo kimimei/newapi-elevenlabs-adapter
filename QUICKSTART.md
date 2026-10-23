@@ -17,6 +17,14 @@ bash scripts/up.sh --key sk_你的ElevenLabsKey
 | 3/4 | 轮询容器健康检查，最多等 60 秒 |
 | 4/4 | 拉 `/v1/models` 冒烟，有 `--db` 时顺带跑 12 项自检 |
 
+> **国内网络首次构建慢？** 默认从 `pypi.org` 拉依赖，实测能卡十几分钟。加镜像源可降到 2 分钟内：
+>
+> ```bash
+> PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple bash scripts/up.sh --key sk_你的Key
+> ```
+
+账本写在 `./logs/billing/`（按天切分 JSONL），已挂到宿主机，容器重建不丢，`scripts/reconcile.py` 可直接读。
+
 起完直接打开 `http://<IP>:8123` —— 左边试听音色，右边生成可复制的配置（无需装任何东西）。
 开启试听需在 `.env` 设 `ADAPTER_DEMO_ENABLED=1`（默认关闭，因为会公开消耗服务端 Key）。
 
@@ -92,5 +100,7 @@ python run.py             # 默认 127.0.0.1:8123
 | 面板「测试渠道」失败 | 它用 chat 端点探测，TTS 渠道必然失败 | **正常现象**，用 `/v1/audio/speech` 验证 |
 | 拿到的是静音文件 | `ELEVENLABS_MOCK=1` | 改成 0 后重启；自检第 1 项会报警 |
 | 调用成功但扣费异常 | `AudioRatio` 没归零 / 倍率填错 | 跑自检，看第 10–12 项 |
+| `/v1/usage` 一直是 0，但调用成功 | 账本目录不可写（容器内 uid 10001，宿主 `logs/` 属主不对） | `sudo chown -R 10001:10001 logs` 后重启；`docker logs` 里会有 `billing log write failed` |
+| 毛利率是 `null` | 没配单价，按设计不给错数 | 在 `.env` 填 `ADAPTER_UP_CREDITS_PER_USD` / `ADAPTER_CHARS_PER_USD` |
 
 完整参数与错误码见 [`README.md`](README.md)，自检说明见 [`scripts/README.md`](scripts/README.md)。

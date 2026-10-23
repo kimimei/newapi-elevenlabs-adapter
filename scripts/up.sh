@@ -97,13 +97,17 @@ step "1/4 准备 .env"
 
 if [ ! -f .env ]; then
   if [ "$DRY" -eq 1 ]; then
-    printf '   %s$ cp .env.example .env%s\n' "$C_DIM" "$C_END"
+    printf '   %s$ cp .env.example .env && chmod 600 .env%s\n' "$C_DIM" "$C_END"
   else
     cp .env.example .env
-    ok "已从 .env.example 生成 .env"
+    # .env 里有上游 Key：默认 644 意味着同机任何用户都能读走
+    chmod 600 .env 2>/dev/null || true
+    ok "已从 .env.example 生成 .env（权限 $(stat -c '%a' .env 2>/dev/null || echo 600)）"
   fi
 else
-  ok ".env 已存在，沿用"
+  # 老部署可能停留在 644，这里顺带收紧
+  [ "$DRY" -eq 0 ] && chmod 600 .env 2>/dev/null || true
+  ok ".env 已存在，沿用（权限已收紧为 $(stat -c '%a' .env 2>/dev/null || echo 600)）"
 fi
 
 # 端口：命令行 > .env > 8123
@@ -164,6 +168,19 @@ fi
 
 # ---------------------------------------------------------------- 起容器
 step "2/4 启动容器（首次构建约 1–2 分钟）"
+
+# 账本目录挂到宿主机。容器内进程是 uid 10001，宿主目录属主不对同样写不进去
+if [ "$DRY" -eq 1 ]; then
+  printf '   %s$ mkdir -p logs/billing && chown -R 10001:10001 logs%s\n' "$C_DIM" "$C_END"
+else
+  mkdir -p logs/billing
+  if [ "$(id -u)" = "0" ]; then
+    chown -R 10001:10001 logs 2>/dev/null || true
+  else
+    warn "非 root 运行：若 logs/ 属主不是 10001，账本会写不进去（sudo chown -R 10001:10001 logs）"
+  fi
+fi
+
 if [ "$BUILD" -eq 1 ]; then
   run env ADAPTER_PORT="$PORT" $COMPOSE up -d --build
 else

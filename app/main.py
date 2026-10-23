@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 from .config import (
     ALLOW_IPS,
     BILLING_LOG_DAYS,
+    BILLING_MODE,
     MAX_BODY_BYTES,
     MAX_CHARS,
     MAX_CONCURRENCY,
@@ -632,7 +633,16 @@ async def usage(days: int = 30):
             }
             for r in by_token
         ],
-        "note": "计费 = 实际合成字符数；saved_chars 是清理帮你省下的、没有向你收费的部分",
+        # 口径必须跟着 BILLING_MODE 走：默认 input 下「计费 = 提交的原始字符数」，
+        # saved_chars 仍然计入账单（是上游成本节省，不是客户折扣）。
+        # 写死成 chars 的说法会让对账的人以为这部分没收费，正好反了。
+        "billing_mode": BILLING_MODE,
+        "note": (
+            "计费 = 客户提交的原始字符数（与 new-api 一致）；"
+            "saved_chars 是清理掉、上游没有付钱的部分，仍计入账单"
+            if BILLING_MODE == "input"
+            else "计费 = 实际合成字符数；saved_chars 是清理帮你省下的、没有向你收费的部分"
+        ),
     }
 
 
