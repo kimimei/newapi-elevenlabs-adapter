@@ -39,3 +39,11 @@ jobs:
       # 这是一条会真的拦住你的规则，不是装饰。
       - name: Release gate
         run: python scripts/release_check.py
+
+      # 示例脚本是给人抄的，抄错一句就是一轮排障。只做语法级检查：
+      # 不联网、不需要上游 Key（Node 18+ 在 ubuntu-latest 自带）。
+      - name: Examples syntax
+        run: |
+          for f in examples/python/*.py; do python -m py_compile "$f"; done
+          for f in examples/node/*.mjs; do node --check "$f"; done
+          for f in examples/curl/*.sh; do bash -n "$f"; done

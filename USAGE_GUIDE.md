@@ -39,6 +39,8 @@
 
 ## 4. 调用示例
 
+> 下面是最短示例，方便直接抄进代码。**能直接跑、带排错的完整脚本在 [`examples/`](examples/README.md)**（Python / Node / curl，含长稿分段与异步任务）。
+
 ### Python（OpenAI SDK）
 
 ```python
