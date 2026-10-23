@@ -11,15 +11,16 @@
 
 | 场景 | 音色 | 时长 | 收听 |
 |---|---|---|---|
-| 新闻播报 | 云 `yun` | 15s | [▶ news_yun.mp3](examples/demo/news_yun.mp3) |
-| 直播带货 | 林 `lin` | 16s | [▶ livestream_lin.mp3](examples/demo/livestream_lin.mp3) |
-| 古风诗词 | 胖哥 `pangge` | 20s | [▶ poetry_pangge.mp3](examples/demo/poetry_pangge.mp3) |
-| 悬疑旁白 | 赵埃文 `evan` | 17s | [▶ suspense_evan.mp3](examples/demo/suspense_evan.mp3) |
-| **情绪骤变** | 林 `lin` | 14s | [▶ emotion_lin.mp3](examples/demo/emotion_lin.mp3) |
-| 英文播客开场 | Sarah | 22s | [▶ en_podcast_sarah.mp3](examples/demo/en_podcast_sarah.mp3) |
+| 新闻播报 | 云 `yun` | 0:15 | [▶ news_yun.mp3](examples/demo/news_yun.mp3) |
+| 直播带货 | 林 `lin` | 0:15 | [▶ livestream_lin.mp3](examples/demo/livestream_lin.mp3) |
+| 古风诗词 | 胖哥 `pangge` | 0:19 | [▶ poetry_pangge.mp3](examples/demo/poetry_pangge.mp3) |
+| 悬疑旁白 | 赵埃文 `evan` | 0:16 | [▶ suspense_evan.mp3](examples/demo/suspense_evan.mp3) |
+| **情绪骤变** | 林 `lin` | 0:13 | [▶ emotion_lin.mp3](examples/demo/emotion_lin.mp3) |
+| 英文播客开场 | Sarah | 0:21 | [▶ en_podcast_sarah.mp3](examples/demo/en_podcast_sarah.mp3) |
 
 > 第 5 条是全套里最值钱的一段：同一句话里走完**温柔 → 暴怒 → 愧疚**。
 > 文案原文、字符数与复现命令见 [`examples/demo/`](examples/demo/README.md)。
+> 不想逐个点开？[**一页连听 6 段**](https://kimimei.github.io/newapi-elevenlabs-adapter/examples/demo/) —— 带上文案、「听点」和一键复制复现命令。
 
 **不是又一个协议转换 shim。** 协议翻译遍地都是，接上之后算错钱才是真问题：
 

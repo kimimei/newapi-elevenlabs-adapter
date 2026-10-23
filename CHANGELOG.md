@@ -18,6 +18,7 @@
 - **自检工具链**：`scripts/preflight.py`（12 项接入体检）、`scripts/reconcile.py`（HTML 对数报告）、`scripts/release_check.py`（发布门禁）
 - **可直接运行的示例**：`examples/` 下 Python（标准库 / 官方 SDK）、Node、curl 三套脚本，含长稿分段与异步任务，输出计费凭据并给出具体排错方向
 - **演示音频**：`examples/demo/` 6 段真实合成样本（新闻 / 带货 / 诗词 / 悬疑 / 情绪骤变 / 英文），附文案原文、字符数与复现命令，可在 README 首屏直接试听
+- **在线试听页**：`examples/demo/index.html` —— 单文件、零依赖、无外链 CDN，6 段一页连听，带「听点」与一键复制复现命令；可直接本地双击打开，也可挂 GitHub Pages
 - **静态试音页**：`static/index.html`，可独立托管做售前页
 
 ### 修复

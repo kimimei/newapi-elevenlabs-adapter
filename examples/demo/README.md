@@ -3,16 +3,19 @@
 6 段真实合成的音频，**全部经由本仓库这条链路产出**（不是 ElevenLabs 官网样本）。
 用途只有一个：让你在花一分钱之前，先判断「中文像不像人话」。
 
-点文件名即可在 GitHub 页面里直接播放。
+**在线连听**：<https://kimimei.github.io/newapi-elevenlabs-adapter/examples/demo/>
+（同一个页面的静态版，`index.html` 就在本目录，也能直接双击打开）
+
+点文件名也可在 GitHub 页面里播放。
 
 | # | 收听 | 场景 | 音色别名 | 时长 | 字符数 | 重点听什么 |
 |---|---|---|---|---|---|---|
-| 1 | [▶ news_yun.mp3](news_yun.mp3) | 新闻播报 | `yun`（云） | 15s | 63 | 播报腔的分句停顿、专有名词不连读、句尾收音干脆 |
-| 2 | [▶ livestream_lin.mp3](livestream_lin.mp3) | 直播带货 | `lin`（林） | 16s | 69 | 高能量段的气息撑不撑得住、`三、二、一` 的节奏卡点 |
-| 3 | [▶ poetry_pangge.mp3](poetry_pangge.mp3) | 古风诗词 | `pangge`（胖哥） | 20s | 57 | 文言断句、`琼楼玉宇` 这类词的字音准不准 |
-| 4 | [▶ suspense_evan.mp3](suspense_evan.mp3) | 悬疑旁白 | `evan`（赵埃文） | 17s | 58 | 低声段是否发虚、`一步，一步` 的递进压迫感 |
-| 5 | [▶ emotion_lin.mp3](emotion_lin.mp3) | 情绪骤变 | `lin`（林） | 14s | 57 | **同一段话里温柔 → 暴怒 → 愧疚**，切换处有没有断档 |
-| 6 | [▶ en_podcast_sarah.mp3](en_podcast_sarah.mp3) | 英文播客开场 | Sarah（`EXAVITQu4vr4xnSDxMaL`） | 22s | — | 英文韵律；同一个引擎换语言不掉链子 |
+| 1 | [▶ news_yun.mp3](news_yun.mp3) | 新闻播报 | `yun`（云） | 0:15 | 63 | 播报腔的分句停顿、专有名词不连读、句尾收音干脆 |
+| 2 | [▶ livestream_lin.mp3](livestream_lin.mp3) | 直播带货 | `lin`（林） | 0:15 | 69 | 高能量段的气息撑不撑得住、`三、二、一` 的节奏卡点 |
+| 3 | [▶ poetry_pangge.mp3](poetry_pangge.mp3) | 古风诗词 | `pangge`（胖哥） | 0:19 | 57 | 文言断句、`琼楼玉宇` 这类词的字音准不准 |
+| 4 | [▶ suspense_evan.mp3](suspense_evan.mp3) | 悬疑旁白 | `evan`（赵埃文） | 0:16 | 58 | 低声段是否发虚、`一步，一步` 的递进压迫感 |
+| 5 | [▶ emotion_lin.mp3](emotion_lin.mp3) | 情绪骤变 | `lin`（林） | 0:13 | 57 | **同一段话里温柔 → 暴怒 → 愧疚**，切换处有没有断档 |
+| 6 | [▶ en_podcast_sarah.mp3](en_podcast_sarah.mp3) | 英文播客开场 | Sarah（`EXAVITQu4vr4xnSDxMaL`） | 0:21 | — | 英文韵律；同一个引擎换语言不掉链子 |
 
 > 第 5 条是这套方案最值钱的一条。多数竞品只能做平铺直叙，
 > 这一段里的三次情绪切换，是「AI 配音没感情」这个质疑最直接的反驳。

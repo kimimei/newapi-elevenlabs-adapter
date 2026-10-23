@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>在线试听 · ElevenLabs → OpenAI 兼容适配器</title>
+<meta name="description" content="6 段真实合成音频：中文新闻播报、直播带货、古风诗词、悬疑旁白、情绪骤变，以及英文播客开场。">
+<style>
+  :root{
+    --bg:#F6F6F8; --card:#FFFFFF; --line:#E6E6EC; --line-strong:#D5D5DE;
+    --text:#1C1C22; --text-2:#4A4A55; --muted:#6C6C76;
+    --brand:#C62828; --brand-soft:#FDECEC; --ok:#1F7A3D;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(16,16,24,.05), 0 4px 14px rgba(16,16,24,.04);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+         "Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:44px 20px 64px}
+
+  /* ---------- 头部 ---------- */
+  header{margin-bottom:26px}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+           color:var(--muted);margin-bottom:12px}
+  h1{font-size:26px;line-height:1.35;margin:0 0 10px;letter-spacing:-.2px;font-weight:650}
+  h1 .accent{color:var(--brand)}
+  .lede{color:var(--text-2);font-size:14.5px;margin:0;max-width:62em}
+  .lede code{background:#EFEFF3;border-radius:4px;padding:1px 5px;font-size:13px}
+
+  /* ---------- 顶部提示 ---------- */
+  .note{
+    display:flex;gap:10px;align-items:flex-start;
+    background:var(--brand-soft);border-left:3px solid var(--brand);
+    border-radius:6px;padding:11px 14px;margin:22px 0 26px;
+    font-size:12.5px;color:#5E2222;
+  }
+  .note b{font-weight:600}
+  .note svg{flex:none;margin-top:2px}
+
+  /* ---------- 卡片列表 ---------- */
+  .list{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.list{grid-template-columns:1fr}}
+
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 16px 14px;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;gap:11px;
+  }
+  .card.is-feature{border-color:#E8C4C4}
+
+  .head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .idx{font:600 11px/1 ui-monospace,Menlo,Consolas,monospace;color:var(--muted);
+       background:#F0F0F3;border-radius:4px;padding:4px 6px;flex:none}
+  .scene{font-weight:600;font-size:15px;letter-spacing:-.1px}
+  .tag{font-size:11px;color:var(--brand);background:var(--brand-soft);
+       border-radius:10px;padding:1px 8px;font-weight:600}
+
+  .meta{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+  .meta b{color:var(--text-2);font-weight:600}
+  .meta .k{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px}
+
+  .script{
+    margin:0;color:var(--text-2);font-size:13px;line-height:1.7;
+    border-left:2px solid var(--line-strong);padding-left:10px;
+  }
+  .script.is-unknown{color:var(--muted);font-style:normal}
+
+  /* 别按 34px 压：Chrome 原生控件自身的自然高度是 54px，压扁会把播放键裁掉 */
+  audio{width:100%;height:54px;display:block}
+
+  .tip{font-size:12px;color:var(--muted);line-height:1.6}
+  .tip .label{display:inline-block;font-size:10.5px;letter-spacing:.06em;
+              color:#8A8A94;border:1px solid var(--line);border-radius:4px;
+              padding:0 4px;margin-right:5px;vertical-align:1px}
+  .tip code{background:#F0F0F3;border-radius:3px;padding:0 4px;font-size:11.5px;
+            font-family:ui-monospace,Menlo,Consolas,monospace}
+
+  .actions{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:2px}
+  button{
+    font:inherit;font-size:12.5px;cursor:pointer;
+    background:#fff;border:1px solid var(--line-strong);color:var(--text-2);
+    border-radius:7px;padding:5px 11px;transition:border-color .15s,color .15s,background .15s;
+  }
+  button:hover{border-color:#B9B9C6;color:var(--text)}
+  button:active{background:#F4F4F7}
+  button.copied{border-color:#BFDCC8;color:var(--ok);background:#F3F9F5}
+  button:focus-visible{outline:2px solid #B9B9C6;outline-offset:2px}
+
+  /* ---------- 页脚 ---------- */
+  footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);
+         font-size:12.5px;color:var(--muted)}
+  footer p{margin:0 0 6px}
+  footer a{color:var(--text-2);text-decoration:none;border-bottom:1px solid var(--line-strong)}
+  footer a:hover{color:var(--brand);border-color:#E8C4C4}
+
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">ElevenLabs → OpenAI 兼容适配器</div>
+    <h1>这 6 段声音，是<span class="accent">这台适配器</span>现场合成的</h1>
+    <p class="lede">
+      不是官网样本，也不是别的产品的演示。每一段都跑通了
+      <code>POST /v1/audio/speech</code> → 上游合成 → 返回音频的完整链路。
+      判断「值不值得接」用耳朵比用文档快。
+    </p>
+  </header>
+
+  <div class="note">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.5" stroke="#C62828" stroke-width="1.3"/>
+      <path d="M8 4.6v4.2" stroke="#C62828" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="8" cy="11.4" r=".85" fill="#C62828"/>
+    </svg>
+    <div>
+      <b>原始文件，没有为演示降质。</b>
+      128 kbps 单声道、44.1 kHz，就是接口直接吐出来的字节。
+      重跑不会字节级一致 —— 情绪与停顿是模型按文本推断的，参数没留档。
+    </div>
+  </div>
+
+  <main class="list" id="list"></main>
+
+  <footer>
+    <p>音频由 ElevenLabs 合成，脚本为本项目自写样例文案，随仓库以
+       <a href="https://github.com/kimimei/newapi-elevenlabs-adapter/blob/main/LICENSE">Apache-2.0</a> 提供。</p>
+    <p>源码：
+      <a href="https://github.com/kimimei/newapi-elevenlabs-adapter">kimimei/newapi-elevenlabs-adapter</a>
+      · 复现命令：
+      <a href="https://github.com/kimimei/newapi-elevenlabs-adapter/blob/main/examples/demo/README.md">examples/demo/README.md</a>
+    </p>
+  </footer>
+
+</div>
+
+<script>
+  // 顺序即阅读顺序：先证明「说得像人」，再证明「能变情绪」，最后证明「跨语言」
+  const TRACKS = [
+    {
+      file: 'news_yun.mp3',
+      scene: '新闻播报',
+      voice: '云',
+      alias: 'yun',
+      chars: 63,
+      text: '据本台消息，长三角一体化发展再提速。今天上午，沪苏湖高铁全线开通运营，沿线十二座古城被纳入一小时通勤圈。总台记者发回现场报道。',
+      listen: '分句停顿与专有名词不连读'
+    },
+    {
+      file: 'livestream_lin.mp3',
+      scene: '直播带货',
+      voice: '林',
+      alias: 'lin',
+      chars: 69,
+      text: '家人们看过来！这款空气炸锅真的绝了，不用放油，二十分钟，薯条鸡翅外酥里嫩！今天直播间直降一百二，还送烤盘，三、二、一，上链接，手慢真的无！',
+      listen: '高能量段的气息，`三、二、一` 的节奏'
+    },
+    {
+      file: 'poetry_pangge.mp3',
+      scene: '古风诗词',
+      voice: '胖哥',
+      alias: 'pangge',
+      chars: 57,
+      text: '明月几时有？把酒问青天。不知天上宫阙，今夕是何年。我欲乘风归去，又恐琼楼玉宇，高处不胜寒。起舞弄清影，何似在人间。',
+      listen: '文言断句，`琼楼玉宇` 的字音'
+    },
+    {
+      file: 'suspense_evan.mp3',
+      scene: '悬疑旁白',
+      voice: '赵埃文',
+      alias: 'evan',
+      chars: 58,
+      text: '那扇门，已经三年没有开过了。可就在昨夜，楼下的邻居说，他听见里面有脚步声，一步，一步，很慢，正朝着楼梯口，越来越近。',
+      listen: '低声段发不发虚，递进的压迫感'
+    },
+    {
+      file: 'emotion_lin.mp3',
+      scene: '情绪骤变',
+      voice: '林',
+      alias: 'lin',
+      chars: 57,
+      feature: '同一段话三种情绪',
+      text: '宝宝别怕，妈妈在……妈妈在这儿呢。你给我起来！作业又没写是不是？！对不起，妈妈不是故意凶你的。妈妈只是……太累了。',
+      listen: '温柔 → 暴怒 → 愧疚，切换处有没有断档'
+    },
+    {
+      file: 'en_podcast_sarah.mp3',
+      scene: '英文播客开场',
+      voice: 'Sarah',
+      alias: 'EXAVITQu4vr4xnSDxMaL',
+      chars: null,
+      text: null,
+      listen: '英文韵律；换语言不掉链子'
+    }
+  ];
+
+  const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const md = s => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+  const list = document.getElementById('list');
+  const players = [];
+
+  TRACKS.forEach((t, i) => {
+    const el = document.createElement('article');
+    el.className = 'card' + (t.feature ? ' is-feature' : '');
+
+    const cmd = t.text
+      ? 'bash examples/curl/tts.sh "' + t.text + '" --voice ' + t.alias + ' -o ' + t.file
+      : '';
+
+    el.innerHTML =
+      '<div class="head">' +
+        '<span class="idx">' + String(i + 1).padStart(2, '0') + '</span>' +
+        '<span class="scene">' + esc(t.scene) + '</span>' +
+        (t.feature ? '<span class="tag">' + esc(t.feature) + '</span>' : '') +
+      '</div>' +
+      '<div class="meta">' +
+        '<span>音色 <b>' + esc(t.voice) + '</b> <span class="k">' + esc(t.alias) + '</span></span>' +
+
+        (t.chars ? '<span>计费 <b>' + t.chars + '</b> 字符</span>' : '') +
+      '</div>' +
+      '<p class="script' + (t.text ? '' : ' is-unknown') + '">' +
+        (t.text ? esc(t.text) : '早期案例，原文未留档，仅作音色与语种参考。') +
+      '</p>' +
+      // preload="metadata"：只读文件头拿时长（Pages 支持 Range，代价几 KB），
+    // 换来播放器上显示真实时长而不是 0:00/0:00 —— 后者会让人以为音频是空的
+    '<audio controls preload="metadata" src="' + encodeURIComponent(t.file) + '"></audio>' +
+      '<p class="tip"><span class="label">听点</span>' + md(t.listen) + '</p>' +
+      '<div class="actions">' +
+        (cmd ? '<button type="button" data-cmd="' + esc(cmd) + '">复制复现命令</button>' : '') +
+      '</div>';
+
+    list.appendChild(el);
+
+    // 同一时刻只播一条：6 个音频叠在一起没人分得清
+    const audio = el.querySelector('audio');
+    players.push(audio);
+    audio.addEventListener('play', () => {
+      players.forEach(a => { if (a !== audio && !a.paused) a.pause(); });
+    });
+  });
+
+  list.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-cmd]');
+    if (!btn) return;
+    const text = btn.dataset.cmd;
+    const done = () => {
+      btn.textContent = '已复制';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '复制复现命令'; btn.classList.remove('copied'); }, 1600);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done).catch(fallback);
+    } else {
+      fallback();
+    }
+    function fallback() {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:-1000px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); done(); } catch (_) { btn.textContent = '复制失败'; }
+      document.body.removeChild(ta);
+    }
+  });
+</script>
+</body>
+</html>
