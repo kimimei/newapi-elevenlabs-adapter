@@ -23,6 +23,7 @@
 > 文案原文、字符数与复现命令见 [`examples/demo/`](examples/demo/README.md) ——
 > 里面也写了哪两条因为音准和音色问题被换掉，以及为什么这类问题只能靠人耳验。
 > 不想逐个点开？[**一页连听 6 段**](https://kimimei.github.io/newapi-elevenlabs-adapter/examples/demo/) —— 带上文案、「听点」和一键复制复现命令。
+> 站点首页在 <https://kimimei.github.io/newapi-elevenlabs-adapter/>。
 
 **不是又一个协议转换 shim。** 协议翻译遍地都是，接上之后算错钱才是真问题：
 
@@ -396,6 +397,7 @@ python -m pytest tests -v
 | [QUICKSTART.md](QUICKSTART.md) | **逐步部署引导**：前提检查、三种部署、接入、验证、排错 |
 | [USAGE_GUIDE.md](USAGE_GUIDE.md) | 调用方视角：请求示例、音色、错误处理 |
 | [examples/](examples/README.md) | **可直接运行的调用脚本**：Python / Node / curl，长稿分段与异步任务 |
+| [examples/demo/](examples/demo/README.md) | **在线试听**：6 段真实合成音频 + 文案原文 + 复现命令，[网页版一页连听](https://kimimei.github.io/newapi-elevenlabs-adapter/examples/demo/) |
 | [scripts/README.md](scripts/README.md) | 12 项自检 / 一页对数报告 / 三层对账工具 |
 | [SECURITY.md](SECURITY.md) | 部署边界、已修问题、已知限制 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 开发环境、测试、计费改动的额外要求 |
