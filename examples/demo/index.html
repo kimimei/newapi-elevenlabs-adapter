@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>在线试听 · ElevenLabs → OpenAI 兼容适配器</title>
-<meta name="description" content="6 段真实合成音频：中文新闻播报、直播带货、古风诗词、悬疑旁白、情绪骤变，以及英文播客开场。">
+<meta name="description" content="6 段真实合成音频：中文新闻播报、电商口播、古风诗词、悬疑旁白、情绪骤变（妈妈），以及英文播客开场。">
 <style>
   :root{
     --bg:#F6F6F8; --card:#FFFFFF; --line:#E6E6EC; --line-strong:#D5D5DE;
@@ -154,13 +154,13 @@
       listen: '分句停顿与专有名词不连读'
     },
     {
-      file: 'livestream_lin.mp3',
-      scene: '直播带货',
-      voice: '林',
-      alias: 'lin',
-      chars: 69,
-      text: '家人们看过来！这款空气炸锅真的绝了，不用放油，二十分钟，薯条鸡翅外酥里嫩！今天直播间直降一百二，还送烤盘，三、二、一，上链接，手慢真的无！',
-      listen: '高能量段的气息，`三、二、一` 的节奏'
+      file: 'livestream_amy.mp3',
+      scene: '电商口播 / 带货',
+      voice: '艾米',
+      alias: 'amy',
+      chars: 79,
+      text: '家人们，今天给大家带来一款超好用的智能音箱！音质清晰，操作简单，老人小孩都能用。现在下单立减五十元，还送一年会员！数量有限，先到先得，赶紧点击下方链接抢购吧！',
+      listen: '一口气念完的销售腔，价格与赠品不吞字'
     },
     {
       file: 'poetry_pangge.mp3',
@@ -181,14 +181,14 @@
       listen: '低声段发不发虚，递进的压迫感'
     },
     {
-      file: 'emotion_lin.mp3',
-      scene: '情绪骤变',
-      voice: '林',
-      alias: 'lin',
-      chars: 57,
-      feature: '同一段话三种情绪',
-      text: '宝宝别怕，妈妈在……妈妈在这儿呢。你给我起来！作业又没写是不是？！对不起，妈妈不是故意凶你的。妈妈只是……太累了。',
-      listen: '温柔 → 暴怒 → 愧疚，切换处有没有断档'
+      file: 'emotion_yun.mp3',
+      scene: '情绪骤变（妈妈）',
+      voice: '云',
+      alias: 'yun',
+      chars: 100,
+      feature: '同一段话四次情绪切换',
+      text: '宝宝不怕，妈妈抱着你呢，乖。你给我站住！那是刚买的花瓶，三百八十八块，你说碎就碎了？！对不起，妈妈不该吼你。妈妈不是心疼钱，妈妈是……太累了。哈哈，好啦好啦，碎了就碎了，明天妈妈给你买新的，好不好呀？',
+      listen: '温柔 → 暴怒 → 愧疚 → 哄回去，接缝处有没有断档'
     },
     {
       file: 'en_podcast_sarah.mp3',
