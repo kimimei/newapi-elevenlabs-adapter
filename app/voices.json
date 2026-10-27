@@ -65,7 +65,7 @@
         "zh-pangbai": {"voice_id": "hFamrilbAE6WDMtWgKvu", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "旁白男声"},
         "zh-youshengshu": {"voice_id": "007rapvffUWW4JvRagws", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "有声书沉稳男声"},
         "zh-shangwu": {"voice_id": "MI36FIkp9wRP7cpWKPTl", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "商务温暖男声"},
-        "zh-duihua": {"voice_id": "UFDAUkGzdLAEJlINT3Fx", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "对话口播男声"},
+        "zh-duihua": {"voice_id": "lt7GBaCoAHWbT7JSZ5Xs", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "对话口播男声"},
         "zh-qinqie": {"voice_id": "bhJUNIXWQQ94l8eI2VUf", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "亲切直播女声"},
         "zh-boke": {"voice_id": "lt7GBaCoAHWbT7JSZ5Xs", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "磁性播客男声"},
         "zh-yingshi": {"voice_id": "PSvrh6w41Qm19oaaHLca", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "影视通用女声"},
@@ -73,7 +73,7 @@
         "zh-旁白": {"voice_id": "hFamrilbAE6WDMtWgKvu", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "旁白男声"},
         "zh-有声书": {"voice_id": "007rapvffUWW4JvRagws", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "有声书沉稳男声"},
         "zh-商务": {"voice_id": "MI36FIkp9wRP7cpWKPTl", "model": "eleven_v3", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "商务温暖男声"},
-        "zh-对话": {"voice_id": "UFDAUkGzdLAEJlINT3Fx", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "对话口播男声"},
+        "zh-对话": {"voice_id": "lt7GBaCoAHWbT7JSZ5Xs", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "对话口播男声"},
         "zh-亲切": {"voice_id": "bhJUNIXWQQ94l8eI2VUf", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "亲切直播女声"},
         "zh-播客": {"voice_id": "lt7GBaCoAHWbT7JSZ5Xs", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "磁性播客男声"},
         "zh-影视": {"voice_id": "PSvrh6w41Qm19oaaHLca", "model": "eleven_v4", "lang": "zh", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75, "style": 0.25}, "label": "影视通用女声"}
@@ -107,11 +107,16 @@
     "pangge": "hFamrilbAE6WDMtWgKvu",
     "bo": "007rapvffUWW4JvRagws",
     "evan": "MI36FIkp9wRP7cpWKPTl",
-    "lin": "UFDAUkGzdLAEJlINT3Fx",
+    "lin": "lt7GBaCoAHWbT7JSZ5Xs",
     "amy": "bhJUNIXWQQ94l8eI2VUf",
     "xinghe": "lt7GBaCoAHWbT7JSZ5Xs",
     "anna": "PSvrh6w41Qm19oaaHLca",
     "ladaisy": "8RCmdqih4CKjJ7Bd3ZxT",
     "ziyue": "5qr5FEpvZGzmVOPBS55W"
+  },
+
+  "_deprecated_20261026": {
+    "_comment": "lin（UFDAUkGzdLAEJlINT3Fx）的 Voice Library 副本于 2026-09-09 10:58 UTC 被作者关闭共享（sharing.status=copied_disabled），真合成返 403 voice_access_denied。2026-10-26 实测三条恢复路径全部失败：重新 add 返 400 'Sharing is not enabled'、原始样本已被服务端删除（does_not_exist）、公共库索引残留但共享已关。故 lin 自即日起映射到 xinghe（lt7GBaCoAHWbT7JSZ5Xs）——名字保留只为不打断存量调用，实际声音已是 xinghe。本段仅用于查历史订单的音色归属，不要用于合成。",
+    "lin": "UFDAUkGzdLAEJlINT3Fx"
   }
 }

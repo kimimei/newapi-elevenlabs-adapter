@@ -2,6 +2,18 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 修复
+
+- **`lin` 音色已失效，表现为 403 而非静默降级**：`lin`（`UFDAUkGzdLAEJlINT3Fx`）是 Voice Library 的副本（`is_owner=false`），原作者于 2026-09-09 10:58 UTC 关闭共享（`sharing.status=copied_disabled`），此后真合成一律返 `403 voice_access_denied`。该音色在 `/v1/voices` 里仍正常列出，所以「看得见 ≠ 能用」——这段静默期靠枚举接口完全发现不了，只有真合成 1 个字符才能验出来。2026-10-26 实测三条恢复路径全部失败：重新 `add` 返 `400 Sharing is not enabled`、原始样本已被服务端删除（`does_not_exist`）、公共库索引残留但共享已关。现将 `lin` 映射到 `xinghe`（`lt7GBaCoAHWbT7JSZ5Xs`）——**名字保留只为不打断存量调用，实际声音已是 xinghe**。
+
+### 变更
+
+- 以下三处同步指向 `xinghe`：`voices.lin`、`packs.cn.models["zh-duihua"]`、`packs.cn.models["zh-对话"]`。映射横跨三处，漏改任一处该通路会单独失效，且报错形态像上游故障（403）而不像配置错误。
+- 新增 `_deprecated_20261026` 段留存旧 ID 与失效溯源，仅供核对历史订单的音色归属，**不要用于合成**。加载器（`app/voices.py`）只读 `voices` / `engines` / `packs` 三个键，该未知顶层键不会被解析成别名——已实测其不出现在 `Voices.aliases` 与 `Voices.voices` 中。
+- 改后与 `elevenlabs-adapter-go` 的 `internal/voices/voices.json` 逐字节一致，两个实现重新对齐（Go 侧已有 `catalog_test.go` 钉住该映射，Python 侧暂无等价用例）。
+
 ## [0.4.0] - 2026-10-23
 
 首个公开版本。
