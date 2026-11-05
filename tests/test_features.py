@@ -36,12 +36,16 @@ def test_every_error_has_fix():
     assert body["fix"].startswith(("把", "检查", "在", "补", "去掉", "按"))
 
 
-def test_stream_501_has_actionable_fix():
+def test_stream_is_ignored_with_header():
+    """stream=true 不再 501，而是忽略参数返回音频 + X-Stream-Ignored 告知。
+
+    反证：把 main.py 里的 501 分支加回去，此测试立即变红。
+    """
     r = client.post("/v1/audio/speech",
                     json={"model": "eleven_v3", "input": "你好", "voice": "rachel",
                           "stream": True})
-    assert r.status_code == 501
-    assert "stream" in r.json()["error"]["fix"]
+    assert r.status_code == 200
+    assert r.headers.get("X-Stream-Ignored") == "true"
 
 
 def test_bad_voice_id_fix_mentions_voice_field():
@@ -271,3 +275,37 @@ def test_version_matches_changelog():
     ver = re.search(r'version="([^"]+)"', (root / "app" / "main.py").read_text("utf-8")).group(1)
     txt = (root / "CHANGELOG.md").read_text("utf-8")
     assert "## [%s]" % ver in txt, "app/main.py version=%s，但 CHANGELOG 没有 ## [%s] 条目" % (ver, ver)
+
+
+def test_openai_voice_names_all_resolve():
+    """OpenAI 官方 6 个音色必须全部可解析。
+
+    为什么要有这条：几乎所有 work 工具（Dify / n8n / Coze / LangChain）接入
+    OpenAI 兼容 TTS 时都默认传 voice="alloy"（OpenAI 文档示例值）。
+    这 6 个名字若解析失败，接入方第一次调用就 400。
+    反证：从 voices.json 删掉任一 OpenAI 音色映射，此测试立即变红。
+    """
+    from app.voices import load_voices
+
+    v = load_voices()
+    for name in ("alloy", "echo", "fable", "onyx", "nova", "shimmer"):
+        vid = v.voice_to_id(name)
+        assert vid, f"OpenAI 音色 {name} 应解析出 voice_id，实际为空"
+        assert len(vid) >= 15, f"{name} 的 voice_id 异常: {vid}"
+
+
+def test_elevenlabs_tts_alias_resolves_to_real_engine():
+    """elevenlabs-tts 必须映射到真实引擎，不能原样透传给上游。
+
+    这条锁的是一个真实缺陷：曾经有个分支把 "elevenlabs-tts" 当引擎名
+    直接发给 ElevenLabs，上游返回
+    "An invalid ID has been received: 'elevenlabs-tts'" -> 整条兼容入口 400。
+    反证：把该直通分支加回 elevenlabs_client.py，此测试立即变红。
+    """
+    from app.elevenlabs_client import resolve_voice_and_model
+    from app.voices import load_voices
+
+    v = load_voices()
+    _, model_id, _ = resolve_voice_and_model("elevenlabs-tts", None, v)
+    assert model_id != "elevenlabs-tts", "elevenlabs-tts 被原样透传给上游，上游会报 invalid ID"
+    assert model_id.startswith("eleven_"), f"应映射到 eleven_* 引擎名，实际 {model_id}"

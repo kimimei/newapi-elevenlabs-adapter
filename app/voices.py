@@ -140,6 +140,16 @@ class Voices:
         vid = self.voices.get(name)
         if vid:
             return vid
+        # 也要能从 aliases 取。
+        #
+        # 原因（2026-11-05）：OpenAI 的 6 个官方音色（alloy/echo/fable/onyx/nova/shimmer）
+        # 是按「别名 + 绑定 voice_id」注册的，落在 aliases 里而不是 voices 里。
+        # 标准客户端调用 TTS 时传的是 body.voice（不是 model），走的就是 voice_to_id，
+        # 只查 voices 会导致 voice="alloy" 解析为空 -> 400，
+        # 于是所有按 OpenAI 规范接入的 work 工具开箱即挂。
+        spec = self.aliases.get(name)
+        if spec and spec.get("voice_id"):
+            return spec["voice_id"]
         if len(name) >= 15 and " " not in name:
             return name
         return None

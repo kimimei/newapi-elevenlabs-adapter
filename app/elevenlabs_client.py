@@ -152,7 +152,12 @@ def resolve_voice_and_model(model: str, voice: str | None, voices) -> tuple[str 
         picked = _check_voice_id(voice_id or alias.get("voice_id"), "aliases[%s]" % model)
         return picked, alias.get("model") or DEFAULT_MODEL, extra
 
-    if model.startswith("eleven_") or model in ("elevenlabs-tts",):
+    # 注意：不要再单独放行 "elevenlabs-tts"。
+    # 它不是上游认识的引擎名，放行会把字面量原样发过去，上游报
+    # "An invalid ID has been received: 'elevenlabs-tts'" -> 400。
+    # 它已在 voices.json 的 compat 包里注册成别名，应走上面的 aliases 分支映射到真实引擎。
+    # （2026-11-05 实测发现：该别名此前一直返回 400，属既有缺陷。）
+    if model.startswith("eleven_"):
         return voice_id, model, {}
 
     return voice_id, voices.model_alias.get(model, DEFAULT_MODEL), {}

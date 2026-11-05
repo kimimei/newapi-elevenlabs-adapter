@@ -102,9 +102,18 @@ def test_speech_unknown_response_format():
     assert "aac" in r.json()["error"]["message"]
 
 
-def test_speech_stream_not_implemented():
+def test_speech_stream_is_ignored_not_rejected():
+    """stream=true 应被忽略并按非流式返回 200，而不是 501。
+
+    历史：这里原本断言 501。但大量 work 工具（Dify / n8n / Agent 框架）
+    调用 OpenAI 兼容 TTS 时会默认带 "stream": true，501 会让接入方首次调用即失败，
+    而他们只是照抄了 OpenAI 默认参数，报错对他们没有指导意义。
+    现在改为：忽略该参数、照常返回 audio/*，并用 X-Stream-Ignored 显式告知。
+    """
     r = client.post("/v1/audio/speech", json={"model": "tts-1", "input": "hi", "voice": "rachel", "stream": True})
-    assert r.status_code == 501
+    assert r.status_code == 200
+    assert r.headers.get("X-Stream-Ignored") == "true"
+    assert r.headers.get("content-type", "").startswith("audio/")
 
 
 def test_speech_auth_required_when_not_mock(monkeypatch):

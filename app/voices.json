@@ -38,11 +38,17 @@
       "label": "OpenAI 兼容模型名",
       "enabled_by_default": false,
       "models": {
-        "tts-1": {"model": "eleven_multilingual_v2", "label": "OpenAI 经典名"},
-        "tts-1-hd": {"model": "eleven_multilingual_v2", "label": "OpenAI 高清名"},
-        "elevenlabs-tts": {"model": "eleven_multilingual_v2", "label": "通用别名"},
+        "tts-1": {"model": "eleven_v3", "label": "OpenAI 经典名（V3 多音字正确）"},
+        "tts-1-hd": {"model": "eleven_v3", "label": "OpenAI 高清名（V3 多音字正确）"},
+        "elevenlabs-tts": {"model": "eleven_v3", "label": "通用别名（V3 多音字正确）"},
         "eleven-flash": {"model": "eleven_flash_v2_5", "label": "Flash 别名"},
-        "eleven-turbo": {"model": "eleven_turbo_v2_5", "label": "Turbo 别名"}
+        "eleven-turbo": {"model": "eleven_turbo_v2_5", "label": "Turbo 别名"},
+        "alloy": {"voice_id": "21m00Tcm4TlvDq8ikWAM", "model": "eleven_v3", "lang": "zh", "label": "OpenAI alloy → Rachel（中性通用）"},
+        "echo": {"voice_id": "pNInz6obpgDQGcFmaJgB", "model": "eleven_v3", "lang": "zh", "label": "OpenAI echo → Adam（男声）"},
+        "fable": {"voice_id": "JBFqnCBsd6RMkjVDRZzb", "model": "eleven_v3", "lang": "zh", "label": "OpenAI fable → George（叙事）"},
+        "onyx": {"voice_id": "VR6AewLTigWG4xSOukaG", "model": "eleven_v3", "lang": "zh", "label": "OpenAI onyx → Arnold（低沉男声）"},
+        "nova": {"voice_id": "EXAVITQu4vr4xnSDxMaL", "model": "eleven_v3", "lang": "zh", "label": "OpenAI nova → Bella（女声）"},
+        "shimmer": {"voice_id": "MF3mGyEYCl7XYWbV9V6O", "model": "eleven_v3", "lang": "zh", "label": "OpenAI shimmer → Elli（柔和女声）"}
       }
     },
 

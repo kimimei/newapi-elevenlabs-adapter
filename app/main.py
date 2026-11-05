@@ -30,6 +30,7 @@ from .config import (
     ALLOW_IPS,
     BILLING_LOG_DAYS,
     BILLING_MODE,
+    DEFAULT_MODEL,
     MAX_BODY_BYTES,
     MAX_CHARS,
     MAX_CONCURRENCY,
@@ -86,7 +87,10 @@ def _normalize_status(code: int) -> int:
 
 
 class SpeechRequest(BaseModel):
-    model: str = Field(default="eleven_multilingual_v2", description="OpenAI 模型名 / ElevenLabs 模型名 / 音色别名")
+    # 不能在这里写死引擎名。曾经硬编码 eleven_multilingual_v2，
+    # 结果 config.py 里把默认改成 eleven_v3 也不生效 —— 字段缺失时 Pydantic
+    # 就把值填好了，根本走不到 resolve_voice_and_model 的 DEFAULT_MODEL 分支。
+    model: str = Field(default=DEFAULT_MODEL, description="OpenAI 模型名 / ElevenLabs 模型名 / 音色别名")
     input: str = Field(..., description="要合成的文本")
     voice: str | None = Field(default=None, description="音色名或 voice_id（ElevenLabs 语义）")
     response_format: str = Field(default="mp3", description="mp3/opus/wav/pcm（aac/flac 不受 ElevenLabs 支持）")
@@ -308,11 +312,14 @@ async def audio_speech(req: SpeechRequest, request: Request):
                 "或调大 ADAPTER_MAX_CHARS（注意上游单次也有上限）",
             headers=_bill(400, error="input 超长"),
         )
-    if req.stream:
-        return _openai_error(501, "MVP 暂不支持流式（stream=true），请使用非流式请求",
-                            code="not_implemented",
-                            headers=_bill(501, error="stream 不支持"),
-                            fix="去掉请求体里的 \"stream\": true，或改成 false 走非流式")
+    # stream=true 不再返回 501，改为「忽略该参数，按非流式返回」。
+    #
+    # 原因（2026-11-05）：大量 work 工具（Dify / n8n / 各类 Agent 框架）在调用
+    # OpenAI 兼容 TTS 时会默认带 "stream": true。直接 501 会让接入方第一次调用就失败，
+    # 且报错信息对他们没有指导意义 —— 他们只是照抄了 OpenAI 的默认参数。
+    # 这类客户端拿到完整的 audio/mpeg 音频同样能正常播放，丢的只是首包延迟。
+    # 用 X-Stream-Ignored 头显式告知，避免「以为在流式、其实不是」这种静默差异。
+    stream_ignored = bool(req.stream)
 
     fmt = FORMAT_MAP.get(req.response_format)
     if fmt is None:
@@ -443,6 +450,10 @@ async def audio_speech(req: SpeechRequest, request: Request):
         resp.headers["X-Text-Saved-Chars"] = str(max(0, raw_chars - sent_chars))
     if speed_clamped:
         resp.headers["X-Speed-Clamped"] = str(speed_used)
+    # 显式告知 stream 参数被忽略，避免「以为在流式、其实不是」的静默差异
+    if stream_ignored:
+        resp.headers["X-Stream-Ignored"] = "true"
+        resp.headers["X-Stream-Reason"] = "adapter returns complete audio, not chunked stream"
     _bill(200, up_credits=upstream_cost, up_rid=up_rid)
     return resp
 

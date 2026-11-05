@@ -41,6 +41,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from .config import (
+    DEFAULT_MODEL,
     JOBS_ENABLED,
     TEXT_CLEAN,
     JOBS_MAX_CHARS,
@@ -71,7 +72,9 @@ _pending: dict[str, asyncio.Future] = {}
 
 
 class JobRequest(BaseModel):
-    model: str = Field(default="eleven_multilingual_v2")
+    # 同 main.SpeechRequest：引用 DEFAULT_MODEL，不写死引擎名，
+    # 否则改配置不会生效（字段缺失时 Pydantic 已填好值）。
+    model: str = Field(default=DEFAULT_MODEL)
     input: str = Field(..., description="要合成的文本，可以很长")
     voice: str | None = None
     response_format: str = Field(default="mp3")
