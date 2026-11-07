@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 from urllib.parse import quote
 
+import anyio
 import httpx
 
 from .config import API_BASE, ALLOW_LOCAL_KEY, DEFAULT_MODEL, MAX_RETRIES, MOCK, TIMEOUT
@@ -176,6 +177,38 @@ def build_payload(text: str, model_id: str, output_format: str, speed: float | N
     if voice_settings:
         payload["voice_settings"] = voice_settings
     return payload
+
+
+async def open_elevenlabs_tts_stream(text: str, model_id: str, voice_id: str, api_key: str,
+                                    output_format: str, speed: float | None,
+                                    extra: dict | None = None,
+                                    transport: httpx.AsyncBaseTransport | None = None
+                                    ) -> tuple[httpx.Response, httpx.AsyncClient]:
+    """只打开响应头，不缓冲音频；调用方拥有 response/client，流式绝不重试。
+
+    transport 仅用于注入 httpx.MockTransport 做离线测试；生产不传，走真实网络。
+    """
+    client = httpx.AsyncClient(timeout=TIMEOUT, transport=transport)
+    try:
+        request = client.build_request(
+            "POST", f"{API_BASE}/text-to-speech/{quote(voice_id, safe='')}/stream",
+            params={"output_format": output_format},
+            json=build_payload(text, model_id, output_format, speed, extra),
+            headers={"xi-api-key": api_key, "Accept": "audio/mpeg"})
+        response = await client.send(request, stream=True)
+        if response.status_code != 200:
+            try:
+                await response.aread()
+            finally:
+                with anyio.CancelScope(shield=True):
+                    await response.aclose()
+                    await client.aclose()
+        return response, client
+    except BaseException:
+        # send() 期间取消也要关闭连接池。
+        with anyio.CancelScope(shield=True):
+            await client.aclose()
+        raise
 
 
 async def call_elevenlabs_tts(text: str, model_id: str, voice_id: str, api_key: str,

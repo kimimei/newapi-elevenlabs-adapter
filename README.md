@@ -248,7 +248,19 @@ python3 scripts/preflight.py \
 | `voice` | 否 | — | 音色名（`ladaisy`）或原始 `voice_id`（≥15 字符）。指定后**覆盖** `model` 隐含的音色 |
 | `response_format` | 否 | `mp3` | `mp3` / `opus` / `wav` / `pcm`；`aac`、`flac` 上游不支持 |
 | `speed` | 否 | — | OpenAI 区间 `0.25–4.0`，**钳制**到 `0.7–1.2`，钳制时返回 `X-Speed-Clamped` |
-| `stream` | 否 | `false` | 暂不支持，传 `true` 返回 501 |
+| `stream` | 否 | `false` | 兼容旧客户端：单独传 `true` 仍返回完整音频，响应头 `X-Stream-Ignored: true` |
+| `stream_format` | 否 | `audio` | `sse` 开启真正 MP3 流式；`audio` 保持完整音频 |
+
+### SSE 流式（MP3）
+
+请求示例：`{"model":"tts-1","voice":"rachel","input":"你好","response_format":"mp3","stream_format":"sse"}`。
+上游使用官方 `/text-to-speech/{voice_id}/stream`，不缓冲完整音频、不自动重试。
+返回 `text/event-stream`：`speech.audio.delta` 的 `delta` 是 base64 MP3 字节；逐块解码后按顺序拼接。
+正常结束为 `speech.audio.done`，其 `usage.input_tokens` / `total_tokens` 是原始 `input` 的 Unicode 字符数（不 strip，与默认 input 计费一致），不是模型 tokenizer 数。
+流中失败发送 `error`，不发送 done；客户端需将缺少 done 视为未完成。HTTP 头已发出后不能再更改 200 状态；账本仍将失败/取消记为 502/499、计费 0，上游积分未知记 `null`。
+上游非 200 在 SSE 响应头发送前按原 OpenAI 错误格式返回。流结束或断开时关闭上游连接，并发槽保持至响应结束。
+首版仅支持 MP3，WAV/PCM/Opus SSE 返回 400；不伪造 WAV RIFF 头。Mock 仅生成 WAV，因此拒绝 MP3 SSE，可用离线 MockTransport 测试验证。
+反代请关闭响应缓冲（响应已带 `X-Accel-Buffering: no`）。
 
 ### 5.2 关键响应头
 
@@ -371,7 +383,7 @@ curl -OJ http://<适配器>/v1/audio/speech/jobs/{id}/audio
 
 | 限制 | 状态 |
 |---|---|
-| 流式（`stream=true`） | 返回 501 |
+| 流式 | `stream_format=sse` 支持 MP3；单独 `stream=true` 仍忽略并返回完整音频 |
 | `/v1/audio/transcriptions`（STT） | 未实现 |
 | 长文本自动分片 | 未实现，超限直接 400 |
 | 适配器自身鉴权 | 无，见上文 |

@@ -5,7 +5,7 @@
 new-api / one-api 等中转站把它注册为「OpenAI」类型渠道即可上架 ElevenLabs。
 
 端点：
-  POST /v1/audio/speech   文本转语音（非流式；stream=true 暂返回 501）
+  POST /v1/audio/speech   文本转语音（完整音频或 stream_format=sse 真流式）
   GET  /v1/models         OpenAI 格式模型列表（默认只含标准引擎，可加 ?presets=）
   GET  /v1/presets        补充包清单（各包是否启用、含哪些模型）
   GET  /v1/voices          音色列表
@@ -41,6 +41,7 @@ from .config import (
 from .elevenlabs_client import (
     FORMAT_MAP,
     call_elevenlabs_tts,
+    open_elevenlabs_tts_stream,
     clamp_speed,
     extract_character_cost,
     resolve_api_key,
@@ -54,6 +55,7 @@ from .demo import router as demo_router
 from .jobs import router as jobs_router
 from . import billing
 from . import text_clean
+from .streaming import SpeechStreamResponse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("elevenlabs-adapter")
@@ -96,7 +98,8 @@ class SpeechRequest(BaseModel):
     response_format: str = Field(default="mp3", description="mp3/opus/wav/pcm（aac/flac 不受 ElevenLabs 支持）")
     speed: float | None = Field(default=None, ge=0.25, le=4.0,
                                 description="语速（OpenAI 区间 0.25–4.0），适配器钳制到 ElevenLabs 的 0.7–1.2")
-    stream: bool = Field(default=False, description="MVP 暂不支持流式")
+    stream: bool = Field(default=False, description="兼容旧客户端：未指定 stream_format 时忽略并返回完整音频")
+    stream_format: str = Field(default="audio", description="audio（完整音频）或 sse（MP3 真流式）")
     text_clean: str | None = Field(
         default=None,
         description="文本清理强度，可选 off / safe / normalize。"
@@ -153,6 +156,47 @@ def _inflight() -> int:
     return _CONCURRENCY[0]
 
 
+class _ConcurrencyGate:
+    """纯 ASGI 生命周期：call_next 返回仅代表头就绪，不代表流已经结束。"""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        limited = MAX_CONCURRENCY > 0
+        n = _inflight()
+        if limited and n >= MAX_CONCURRENCY:
+            response = _openai_error(
+                429, "并发已满：当前 %d / 上限 %d。队列已满，请稍后重试。" % (n, MAX_CONCURRENCY),
+                code="rate_limit_error",
+                fix="客户端加退避重试（1-3 秒）；或调大 ADAPTER_MAX_CONCURRENCY；批量任务请串行提交",
+                headers={"Retry-After": "3",
+                         "X-Adapter-Concurrency": "%d/%d" % (n, MAX_CONCURRENCY)})
+            return await response(scope, receive, send)
+        if limited:
+            _CONCURRENCY[0] += 1
+        sent_done = False
+
+        async def tracked(message):
+            nonlocal sent_done
+            await send(message)
+            if message["type"] == "http.response.body" and not message.get("more_body", False):
+                sent_done = True
+
+        try:
+            await self.app(scope, receive, tracked)
+        finally:
+            try:
+                stream = scope.get("state", {}).pop("_speech_stream", None)
+                if stream is not None:
+                    await stream.finish(interrupted=not sent_done)
+            finally:
+                if limited:
+                    _CONCURRENCY[0] = max(0, _CONCURRENCY[0] - 1)
+
+
 # 白名单豁免路径。健康检查必须豁免：白名单填错时唯一的自查手段就是 /healthz，
 # 把它也拦住等于让人瞎填（实测踩过：配错后连健康检查都403，无法判断服务死活）。
 _EXEMPT_PATHS = ("/healthz",)
@@ -188,38 +232,24 @@ async def _guard(request: Request, call_next):
                     "容器网关 172.17.0.1 / 172.18.0.1）；"
                     "用 python scripts/check_proxy_ip.py 可实测确认该填谁")
 
-    # --- 并发闸门 ---
-    # 上游按并发限流。放 200 个请求同时进来，ElevenLabs 会挨个返回 429，
-    # 客户看到的是"随机失败"。在入口就挡住并说清楚并发上限，体验差别很大。
-    if MAX_CONCURRENCY > 0:
-        n = _inflight()
-        if n >= MAX_CONCURRENCY:
-            return _openai_error(
-                429, "并发已满：当前 %d / 上限 %d。队列已满，请稍后重试。" % (n, MAX_CONCURRENCY),
-                code="rate_limit_error",
-                fix="客户端加退避重试（1-3 秒）；或调大 ADAPTER_MAX_CONCURRENCY；"
-                    "批量任务请串行提交",
-                headers={"Retry-After": "3",
-                         "X-Adapter-Concurrency": "%d/%d" % (n, MAX_CONCURRENCY)})
-        _CONCURRENCY[0] += 1
+    # 并发槽位由纯 ASGI 中间件持有至整个响应结束。
+    cl = request.headers.get("content-length")
+    if cl and cl.isdigit() and int(cl) > MAX_BODY_BYTES:
+        return _too_large(int(cl))
+    if not (cl and cl.isdigit()):
+        # 无 Content-Length（chunked 传输）：流式计数，超限立刻掐断。
+        # 收上来的块必须拼回 request._body，否则下游 FastAPI 读到空 body。
+        body = bytearray()
+        async for chunk in request.stream():
+            body += chunk
+            if len(body) > MAX_BODY_BYTES:
+                return _too_large(len(body))
+        request._body = bytes(body)
+    return await call_next(request)
 
-    try:
-        cl = request.headers.get("content-length")
-        if cl and cl.isdigit() and int(cl) > MAX_BODY_BYTES:
-            return _too_large(int(cl))
-        if not (cl and cl.isdigit()):
-            # 无 Content-Length（chunked 传输）：流式计数，超限立刻掐断。
-            # 收上来的块必须拼回 request._body，否则下游 FastAPI 读到空 body。
-            body = bytearray()
-            async for chunk in request.stream():
-                body += chunk
-                if len(body) > MAX_BODY_BYTES:
-                    return _too_large(len(body))
-            request._body = bytes(body)
-        return await call_next(request)
-    finally:
-        if MAX_CONCURRENCY > 0:
-            _CONCURRENCY[0] = max(0, _CONCURRENCY[0] - 1)
+
+# 最外层包住实际下游 send，不能仅等到内存转发队列的尾块。
+app.add_middleware(_ConcurrencyGate)
 
 
 def _pcm_to_wav(pcm: bytes, rate: int = 24000) -> bytes:
@@ -319,7 +349,17 @@ async def audio_speech(req: SpeechRequest, request: Request):
     # 且报错信息对他们没有指导意义 —— 他们只是照抄了 OpenAI 的默认参数。
     # 这类客户端拿到完整的 audio/mpeg 音频同样能正常播放，丢的只是首包延迟。
     # 用 X-Stream-Ignored 头显式告知，避免「以为在流式、其实不是」这种静默差异。
-    stream_ignored = bool(req.stream)
+    is_sse = req.stream_format == "sse"
+    stream_ignored = bool(req.stream) and not is_sse
+    if req.stream_format not in ("audio", "sse"):
+        return _openai_error(400, "stream_format 仅支持 audio 或 sse",
+                             headers=_bill(400, error="stream_format 不支持"))
+    if is_sse and req.response_format != "mp3":
+        return _openai_error(400, "SSE 流式仅支持 mp3；WAV 需要完整长度，不能伪造 RIFF 头",
+                             headers=_bill(400, error="流式格式不支持"))
+    if is_sse and MOCK:
+        return _openai_error(400, "Mock 只生成 WAV，不支持 MP3 SSE；请使用离线测试桩验证流式",
+                             headers=_bill(400, error="Mock 不支持 MP3 流式"))
 
     fmt = FORMAT_MAP.get(req.response_format)
     if fmt is None:
@@ -376,7 +416,11 @@ async def audio_speech(req: SpeechRequest, request: Request):
             resp.headers["X-Mock-Format-Mismatch"] = req.response_format
     else:
         try:
-            up = await call_elevenlabs_tts(text, model_id, voice_id, api_key, output_format, req.speed, extra)
+            if is_sse:
+                up, stream_client = await open_elevenlabs_tts_stream(
+                    text, model_id, voice_id, api_key, output_format, req.speed, extra)
+            else:
+                up = await call_elevenlabs_tts(text, model_id, voice_id, api_key, output_format, req.speed, extra)
         except httpx.HTTPError as e:
             logger.error("upstream call failed: %s", e)
             # 超时上游可能已扣费（这是最贵的一类失败），账本要留痕
@@ -408,12 +452,16 @@ async def audio_speech(req: SpeechRequest, request: Request):
                 headers=_bill(_normalize_status(up.status_code), up_rid=up_rid,
                               error=up.text[:200] or "upstream %d" % up.status_code),
             )
-        body = up.content
-        # OpenAI 的 wav 语义是「带 RIFF 容器的 WAV」，上游给的是裸 PCM
-        if req.response_format == "wav":
-            body = _pcm_to_wav(body)
-        resp = Response(content=body, media_type=content_type)
-        upstream_cost = extract_character_cost(up)
+        if is_sse:
+            resp = SpeechStreamResponse(up, stream_client, raw_chars, _bill, up_rid)
+            request.state._speech_stream = resp
+        else:
+            body = up.content
+            # OpenAI 的 wav 语义是「带 RIFF 容器的 WAV」，上游给的是裸 PCM
+            if req.response_format == "wav":
+                body = _pcm_to_wav(body)
+            resp = Response(content=body, media_type=content_type)
+            upstream_cost = extract_character_cost(up)
 
     # ---- 计费口径 ----
     # 三个数，各有出处：
@@ -454,7 +502,8 @@ async def audio_speech(req: SpeechRequest, request: Request):
     if stream_ignored:
         resp.headers["X-Stream-Ignored"] = "true"
         resp.headers["X-Stream-Reason"] = "adapter returns complete audio, not chunked stream"
-    _bill(200, up_credits=upstream_cost, up_rid=up_rid)
+    if not is_sse:
+        _bill(200, up_credits=upstream_cost, up_rid=up_rid)
     return resp
 
 

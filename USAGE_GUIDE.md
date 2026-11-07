@@ -89,7 +89,8 @@ curl -sD - -o /dev/null -X POST https://<服务商域名>/v1/audio/speech \
 | `voice` | 视模型 | — | 音色名或 voice_id。标准引擎必填 |
 | `response_format` | 否 | `mp3` | `mp3` / `opus` / `wav` / `pcm`。`aac`、`flac` 不支持 |
 | `speed` | 否 | — | 传 0.25–4.0，实际会被钳制到 0.7–1.2，钳制时返回 `X-Speed-Clamped` |
-| `stream` | 否 | `false` | 暂不支持，传 `true` 返回 501 |
+| `stream` | 否 | `false` | 单独传 `true` 仍忽略并返回完整音频，带 `X-Stream-Ignored: true` |
+| `stream_format` | 否 | `audio` | `sse` 开启真正 MP3 SSE 流式，详见 [README 的 SSE 说明](README.md#sse-流式mp3) |
 
 ### 响应头
 
@@ -160,7 +161,7 @@ Cherry Studio / LobeChat / ChatGPT Next Web 等可以在「语音」设置里填
 | 400「无法确定 voice_id」 | 用了标准引擎却没传 `voice`，补上即可 |
 | 400 参数错误 | 检查 `response_format`（`aac`/`flac` 不支持） |
 | 404 model_not_found | 模型名拼错，或服务商没上架该模型 |
-| 501 | 传了 `stream=true`，去掉该参数 |
+| SSE 返回 400 | 首版仅支持 MP3；`response_format=mp3`，并关闭只生成 WAV 的 Mock 模式 |
 | 输出文件很小、内容是 JSON | 请求失败了，错误体被写进文件。先不加 `-o` 看响应 |
 | 合成慢 | 正常 1–2 秒（短文本）；文本越长越慢，`flash`/`turbo` 档更快 |
 | 中文多音字念错 | 文本层问题，不是音色问题。改同音字，或问服务商是否支持发音字典 |
