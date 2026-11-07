@@ -147,7 +147,7 @@ def test_first_delta_before_tail_and_slot_held_until_end(monkeypatch):
         assert b"x-stream-ignored" not in headers
         events = req.events
         assert [e["type"] for e in events] == ["speech.audio.delta", "speech.audio.delta", "speech.audio.done"]
-        assert b"".join(base64.b64decode(e["delta"]) for e in events[:-1]) == b"ID3-firstlast-audio"
+        assert b"".join(base64.b64decode(e["audio"]) for e in events[:-1]) == b"ID3-firstlast-audio"
         raw = json.loads(req.body)["input"]
         assert events[-1]["usage"]["input_tokens"] == len(raw)
         assert events[-1]["usage"]["total_tokens"] == len(raw)

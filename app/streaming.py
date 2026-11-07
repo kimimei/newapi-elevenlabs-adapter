@@ -33,7 +33,7 @@ class SpeechStreamResponse(StreamingResponse):
             # 不指定 chunk_size：不能等缓冲区装满才给下游首块。
             async for chunk in self.upstream.aiter_bytes():
                 if chunk:
-                    yield _event("speech.audio.delta", delta=base64.b64encode(chunk).decode("ascii"))
+                    yield _event("speech.audio.delta", audio=base64.b64encode(chunk).decode("ascii"))
         except Exception as exc:
             self.outcome = 502
             self.failure = f"{type(exc).__name__}: {exc}"
