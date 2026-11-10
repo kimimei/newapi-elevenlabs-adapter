@@ -15,11 +15,15 @@ def _event(kind: str, **data) -> bytes:
 
 
 class SpeechStreamResponse(StreamingResponse):
-    def __init__(self, upstream, client, raw_chars: int, bill, up_rid: str | None):
+    def __init__(self, upstream, client, raw_chars: int, bill, up_rid: str | None,
+                 up_credits: int | None = None):
         self.upstream = upstream
         self.client = client
         self.bill = bill
         self.up_rid = up_rid
+        # 上游 character-cost（响应头里就有，流式也拿得到）。不传 = 上游确实没给，
+        # 不是"懒得取"：账本留 None 会让 L2 对账整批空白、毛利率算成零成本。
+        self.up_credits = up_credits
         self.outcome = 499
         self.failure = "客户端取消流式请求"
         self.raw_chars = raw_chars
@@ -72,5 +76,31 @@ class SpeechStreamResponse(StreamingResponse):
                 try:
                     await self.client.aclose()
                 finally:
-                    # 不拿输入长度冒充上游积分；失败/取消仍按既有规则记 0。
-                    self.bill(self.outcome, up_credits=None, up_rid=self.up_rid, error=self.failure)
+                    # 成功才写上游积分；失败/取消仍按既有规则记 0 字符、积分留 None ——
+                    # 不拿输入长度冒充上游积分（上游可能已经扣了，账本要能看出"白扣"）。
+                    self.bill(self.outcome,
+                              up_credits=self.up_credits if self.outcome == 200 else None,
+                              up_rid=self.up_rid, error=self.failure)
+
+
+class MockSpeechStreamResponse(StreamingResponse):
+    """Mock 模式的 SSE 传输：把 mock WAV 字节切成两段 delta，不伪装成 MP3。
+
+    存在的理由：没有它，测试环境压根走不到流式链路（原实现直接 400），
+    所有生命周期/账本问题只能在正式环境首次暴露。字节是 WAV，靠 X-Mock-Format 说明。
+    """
+
+    def __init__(self, data: bytes, raw_chars: int):
+        super().__init__(self._events(data, raw_chars), media_type="text/event-stream", headers={
+            "Cache-Control": "no-cache", "X-Accel-Buffering": "no",
+        })
+
+    async def _events(self, data: bytes, raw_chars: int):
+        mid = max(1, len(data) // 2)
+        for part in (data[:mid], data[mid:]):
+            if part:
+                yield _event("speech.audio.delta", audio=base64.b64encode(part).decode("ascii"))
+        yield _event("speech.audio.done", usage={
+            "input_tokens": raw_chars, "output_tokens": 0, "total_tokens": raw_chars,
+            "input_token_details": {"text_tokens": raw_chars, "audio_tokens": 0},
+        })

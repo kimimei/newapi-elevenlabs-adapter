@@ -55,7 +55,7 @@ from .demo import router as demo_router
 from .jobs import router as jobs_router
 from . import billing
 from . import text_clean
-from .streaming import SpeechStreamResponse
+from .streaming import MockSpeechStreamResponse, SpeechStreamResponse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("elevenlabs-adapter")
@@ -151,6 +151,13 @@ def _too_large(size: int) -> JSONResponse:
 # 引入分布式计数要额外依赖（Redis），对单实例适配器不划算。
 _CONCURRENCY = [0]
 
+# 豁免路径：既不查 IP 白名单，也不占并发槽。
+#   健康检查必须豁免 —— 白名单填错时唯一的自查手段就是 /healthz，
+#   把它也拦住等于让人瞎填（实测踩过：配错后连健康检查都 403，无法判断服务死活）。
+#   并发也必须豁免（2026-11-10 修）—— 流式请求会把槽位占到音频结束（长文本几十秒），
+#   不豁免的话一个流就能把 Dockerfile 的 HEALTHCHECK 打成 429，容器被标成 unhealthy。
+_EXEMPT_PATHS = ("/healthz",)
+
 
 def _inflight() -> int:
     return _CONCURRENCY[0]
@@ -163,7 +170,8 @@ class _ConcurrencyGate:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
+        # 豁免路径连计数都不做：健康检查永远答话，且不占用业务槽位。
+        if scope["type"] != "http" or scope.get("path") in _EXEMPT_PATHS:
             return await self.app(scope, receive, send)
         limited = MAX_CONCURRENCY > 0
         n = _inflight()
@@ -197,9 +205,12 @@ class _ConcurrencyGate:
                     _CONCURRENCY[0] = max(0, _CONCURRENCY[0] - 1)
 
 
-# 白名单豁免路径。健康检查必须豁免：白名单填错时唯一的自查手段就是 /healthz，
-# 把它也拦住等于让人瞎填（实测踩过：配错后连健康检查都403，无法判断服务死活）。
-_EXEMPT_PATHS = ("/healthz",)
+# ⚠️ 注册顺序决定嵌套顺序：Starlette 里**后注册的在外层**。
+# 所以这里必须先注册并发闸门、再注册 _guard —— 让 IP 白名单在最外层。
+# 否则并发打满时，未授权来源也会先看到 429，白名单就只剩心理安慰了。
+# 并发闸门必须是纯 ASGI（而不是 BaseHTTPMiddleware）：它要包住实际下游 send，
+# 槽位保持到最后一帧，而不是 call_next 返回的那一刻。
+app.add_middleware(_ConcurrencyGate)
 
 
 @app.middleware("http")
@@ -246,10 +257,6 @@ async def _guard(request: Request, call_next):
                 return _too_large(len(body))
         request._body = bytes(body)
     return await call_next(request)
-
-
-# 最外层包住实际下游 send，不能仅等到内存转发队列的尾块。
-app.add_middleware(_ConcurrencyGate)
 
 
 def _pcm_to_wav(pcm: bytes, rate: int = 24000) -> bytes:
@@ -357,10 +364,6 @@ async def audio_speech(req: SpeechRequest, request: Request):
     if is_sse and req.response_format != "mp3":
         return _openai_error(400, "SSE 流式仅支持 mp3；WAV 需要完整长度，不能伪造 RIFF 头",
                              headers=_bill(400, error="流式格式不支持"))
-    if is_sse and MOCK:
-        return _openai_error(400, "Mock 只生成 WAV，不支持 MP3 SSE；请使用离线测试桩验证流式",
-                             headers=_bill(400, error="Mock 不支持 MP3 流式"))
-
     fmt = FORMAT_MAP.get(req.response_format)
     if fmt is None:
         return _openai_error(400, f"response_format '{req.response_format}' 不支持；ElevenLabs 仅支持 mp3/opus/wav/pcm",
@@ -408,7 +411,13 @@ async def audio_speech(req: SpeechRequest, request: Request):
     up_rid = None
     if MOCK:
         data, media_type = _mock_audio()
-        resp = Response(content=data, media_type=media_type)
+        if is_sse:
+            # Mock 只造得出 WAV（标准库），绝不伪造 MP3 容器头 —— 但也不该让测试环境
+            # 完全走不了流式链路：把 mock WAV 字节切成两段 delta 发出去，
+            # 并用 X-Mock-Format 明说「这是 wav」，客户端别按 mp3 解码。
+            resp = MockSpeechStreamResponse(data, raw_chars)
+        else:
+            resp = Response(content=data, media_type=media_type)
         resp.headers["X-Mock"] = "true"
         # 请求 mp3/opus 时这里会是 wav：明写出来，别让下游以为是适配器格式转换出问题
         resp.headers["X-Mock-Format"] = "wav"
@@ -452,8 +461,14 @@ async def audio_speech(req: SpeechRequest, request: Request):
                 headers=_bill(_normalize_status(up.status_code), up_rid=up_rid,
                               error=up.text[:200] or "upstream %d" % up.status_code),
             )
+        # 上游积分只出现在响应头 character-cost 里，流式也一样：
+        # send(stream=True) 一返回头就到齐了，不需要读 body。放在分支外共用，
+        # 否则账本 up_credits 永远是 null —— L2 对账（账本 vs /v1/history）整批空白，
+        # /v1/usage 的毛利率也会把这批请求算成零成本（数字好看，钱是假的）。
+        upstream_cost = extract_character_cost(up)
         if is_sse:
-            resp = SpeechStreamResponse(up, stream_client, raw_chars, _bill, up_rid)
+            resp = SpeechStreamResponse(up, stream_client, raw_chars, _bill, up_rid,
+                                        up_credits=upstream_cost)
             request.state._speech_stream = resp
         else:
             body = up.content
@@ -461,7 +476,6 @@ async def audio_speech(req: SpeechRequest, request: Request):
             if req.response_format == "wav":
                 body = _pcm_to_wav(body)
             resp = Response(content=body, media_type=content_type)
-            upstream_cost = extract_character_cost(up)
 
     # ---- 计费口径 ----
     # 三个数，各有出处：
@@ -502,7 +516,8 @@ async def audio_speech(req: SpeechRequest, request: Request):
     if stream_ignored:
         resp.headers["X-Stream-Ignored"] = "true"
         resp.headers["X-Stream-Reason"] = "adapter returns complete audio, not chunked stream"
-    if not is_sse:
+    if not is_sse or MOCK:
+        # Mock 的 SSE 没有上游、也没有 ASGI 生命周期要等，直接按普通响应记账。
         _bill(200, up_credits=upstream_cost, up_rid=up_rid)
     return resp
 

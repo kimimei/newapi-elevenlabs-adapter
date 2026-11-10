@@ -257,9 +257,9 @@ python3 scripts/preflight.py \
 上游使用官方 `/text-to-speech/{voice_id}/stream`，不缓冲完整音频、不自动重试。
 返回 `text/event-stream`：`speech.audio.delta` 的 `delta` 是 base64 MP3 字节；逐块解码后按顺序拼接。
 正常结束为 `speech.audio.done`，其 `usage.input_tokens` / `total_tokens` 是原始 `input` 的 Unicode 字符数（不 strip，与默认 input 计费一致），不是模型 tokenizer 数。
-流中失败发送 `error`，不发送 done；客户端需将缺少 done 视为未完成。HTTP 头已发出后不能再更改 200 状态；账本仍将失败/取消记为 502/499、计费 0，上游积分未知记 `null`。
+流中失败发送 `error`，不发送 done；客户端需将缺少 done 视为未完成。HTTP 头已发出后不能再更改 200 状态；账本把失败/取消记为 502/499、计费 0；**成功时记上游真实积分**（`character-cost` 在响应头里，流式也拿得到），拿不到才写 `null`。
 上游非 200 在 SSE 响应头发送前按原 OpenAI 错误格式返回。流结束或断开时关闭上游连接，并发槽保持至响应结束。
-首版仅支持 MP3，WAV/PCM/Opus SSE 返回 400；不伪造 WAV RIFF 头。Mock 仅生成 WAV，因此拒绝 MP3 SSE，可用离线 MockTransport 测试验证。
+首版仅支持 MP3，WAV/PCM/Opus SSE 返回 400；不伪造 WAV RIFF 头。Mock 模式（`ELEVENLABS_MOCK=1`）也能跑 SSE：按同一套事件发 mock WAV 字节，响应头 `X-Mock-Format: wav` 明说容器是 WAV，测试环境不必再靠离线桩才能验证流式链路。
 反代请关闭响应缓冲（响应已带 `X-Accel-Buffering: no`）。
 
 ### 5.2 关键响应头

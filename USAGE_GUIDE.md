@@ -161,7 +161,7 @@ Cherry Studio / LobeChat / ChatGPT Next Web 等可以在「语音」设置里填
 | 400「无法确定 voice_id」 | 用了标准引擎却没传 `voice`，补上即可 |
 | 400 参数错误 | 检查 `response_format`（`aac`/`flac` 不支持） |
 | 404 model_not_found | 模型名拼错，或服务商没上架该模型 |
-| SSE 返回 400 | 首版仅支持 MP3；`response_format=mp3`，并关闭只生成 WAV 的 Mock 模式 |
+| SSE 返回 400 | 首版仅支持 MP3；把 `response_format` 改成 `mp3`（Mock 模式能跑 SSE，但产出的是 WAV 字节，见 `X-Mock-Format`） |
 | 输出文件很小、内容是 JSON | 请求失败了，错误体被写进文件。先不加 `-o` 看响应 |
 | 合成慢 | 正常 1–2 秒（短文本）；文本越长越慢，`flash`/`turbo` 档更快 |
 | 中文多音字念错 | 文本层问题，不是音色问题。改同音字，或问服务商是否支持发音字典 |
