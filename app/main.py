@@ -431,7 +431,9 @@ async def audio_speech(req: SpeechRequest, request: Request):
             else:
                 up = await call_elevenlabs_tts(text, model_id, voice_id, api_key, output_format, req.speed, extra)
         except httpx.HTTPError as e:
-            logger.error("upstream call failed: %s", e)
+            # 必须打类型：高并发下 httpx 会抛消息为空的异常（如 ConnectError("")），
+            # 只打 %s 的话日志就是 "upstream call failed: " 后面空一片，排障等于盲猜。
+            logger.error("upstream call failed: %s: %s", type(e).__name__, e or "(empty message)")
             # 超时上游可能已扣费（这是最贵的一类失败），账本要留痕
             _, fix = explain(502, str(e))
             return _openai_error(502, f"调用 ElevenLabs 失败：{e}",
