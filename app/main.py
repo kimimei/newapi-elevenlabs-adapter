@@ -60,7 +60,7 @@ from .streaming import MockSpeechStreamResponse, SpeechStreamResponse
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("elevenlabs-adapter")
 
-app = FastAPI(title="ElevenLabs OpenAI-Compatible Adapter", version="0.4.0")
+app = FastAPI(title="ElevenLabs OpenAI-Compatible Adapter", version="0.5.0")
 
 VOICES = load_voices()
 if MOCK:
