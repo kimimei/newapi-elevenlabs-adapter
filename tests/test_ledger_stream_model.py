@@ -206,3 +206,65 @@ def test_legacy_rows_without_stream_field_do_not_crash(monkeypatch, tmp_path):
     assert s["sse_requests"] == 0
     assert "shimmer" in s["by_model"], "缺 model_id 时退回 model，聊胜于无"
     assert s["by_model"]["shimmer"]["credits_per_char"] == 0.5
+
+
+def test_usage_endpoint_exposes_stream_and_model(monkeypatch, tmp_path):
+    """/v1/usage 是白名单返回，新增字段必须显式加进去才看得到。
+
+    这里直接调 async 函数，不起服务：验证的是返回结构，不是传输层。
+    """
+    monkeypatch.setattr(billing, "BILLING_LOG_DIR", str(tmp_path))
+    day = date.today().strftime("%Y-%m-%d")
+    _write_rows(day, [
+        _row(),
+        _row(stream=False, stream_format="audio", up_credits=14,
+             model_id="eleven_multilingual_v2"),
+    ])
+    out = asyncio.run(m.usage(days=1))
+
+    today = out["today"]
+    assert today["sse_requests"] == 1
+    assert today["audio_requests"] == 1
+    assert today["sse_ratio"] == 0.5
+    assert "eleven_flash_v2_5" in today["by_model"]
+    assert today["by_model"]["eleven_flash_v2_5"]["credits_per_char"] is not None
+
+    win = out["window"]
+    assert win["sse_requests"] == 1
+    assert "eleven_multilingual_v2" in win["by_model"]
+
+    caller = out["by_caller"][0]
+    assert caller["sse_requests"] == 1
+    assert caller["sse_ratio"] == 0.5
+    assert caller["models"] == ["eleven_flash_v2_5", "eleven_multilingual_v2"]
+
+
+def test_usage_endpoint_exposes_stream_and_model(monkeypatch, tmp_path):
+    """/v1/usage 是白名单返回，新增字段必须显式加进去才看得到。
+
+    这里直接调 async 函数，不起服务：验证的是返回结构，不是传输层。
+    """
+    monkeypatch.setattr(billing, "BILLING_LOG_DIR", str(tmp_path))
+    day = date.today().strftime("%Y-%m-%d")
+    _write_rows(day, [
+        _row(),
+        _row(stream=False, stream_format="audio", up_credits=14,
+             model_id="eleven_multilingual_v2"),
+    ])
+    out = asyncio.run(m.usage(days=1))
+
+    today = out["today"]
+    assert today["sse_requests"] == 1
+    assert today["audio_requests"] == 1
+    assert today["sse_ratio"] == 0.5
+    assert "eleven_flash_v2_5" in today["by_model"]
+    assert today["by_model"]["eleven_flash_v2_5"]["credits_per_char"] is not None
+
+    win = out["window"]
+    assert win["sse_requests"] == 1
+    assert "eleven_multilingual_v2" in win["by_model"]
+
+    caller = out["by_caller"][0]
+    assert caller["sse_requests"] == 1
+    assert caller["sse_ratio"] == 0.5
+    assert caller["models"] == ["eleven_flash_v2_5", "eleven_multilingual_v2"]

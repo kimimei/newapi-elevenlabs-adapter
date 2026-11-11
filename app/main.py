@@ -702,6 +702,15 @@ async def usage(days: int = 30):
             "credits_per_char": today.get("credits_per_char"),
             "up_cost_usd": today.get("up_cost_usd"),
             "revenue_usd": today.get("revenue_usd"),
+            # 流式维度：没有这组数，就答不出「有多少客户真在用流式」
+            "sse_requests": today["sse_requests"],
+            "audio_requests": today["audio_requests"],
+            "sse_ratio": today["sse_ratio"],
+            # 客户端传了 stream:true 却没给 stream_format=sse 的次数。
+            # 这类请求的首包必然差，单独计数以免被误判成性能问题。
+            "stream_ignored": today["stream_ignored"],
+            # 按上游真实模型拆开：flash 档与 v2/v3 档单价差一倍，混算等于没算
+            "by_model": today["by_model"],
         },
         "window": {
             "requests": sum(r["requests"] for r in by_token),
@@ -714,6 +723,11 @@ async def usage(days: int = 30):
             "credits_per_char": win.get("credits_per_char"),
             "up_cost_usd": win.get("up_cost_usd"),
             "revenue_usd": win.get("revenue_usd"),
+            "sse_requests": win["sse_requests"],
+            "audio_requests": win["audio_requests"],
+            "sse_ratio": win["sse_ratio"],
+            "stream_ignored": win["stream_ignored"],
+            "by_model": win["by_model"],
         },
         "by_caller": [
             {
@@ -723,6 +737,9 @@ async def usage(days: int = 30):
                 "sent_chars": r["sent_chars"],
                 "saved_chars": r["saved_chars"],
                 "saved_ratio": r["saved_ratio"],
+                "sse_requests": r["sse_requests"],
+                "sse_ratio": r["sse_ratio"],
+                "models": r["models"],
             }
             for r in by_token
         ],
