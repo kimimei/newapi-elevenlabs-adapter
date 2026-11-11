@@ -199,6 +199,10 @@ def record(
     elapsed_ms: int,
     model: str | None = None,
     voice: str | None = None,
+    model_id: str | None = None,
+    stream: bool | None = None,
+    stream_format: str | None = None,
+    stream_ignored: bool = False,
     upstream_request_id: str | None = None,
     client_ip: str | None = None,
     token_name: str | None = None,
@@ -227,8 +231,16 @@ def record(
             "ts": int(time.time()),
             "rid": request_id,
             "up_rid": upstream_request_id,
+            # model   客户端请求里写的值（可能只是音色别名，如 "rachel"）
+            # model_id 上游真实模型（如 eleven_flash_v2_5）——**算成本只能用它**
             "model": model,
+            "model_id": model_id,
             "voice": voice,
+            # 没有这三个字段，事后就算不出「流式占比」，
+            # 也分不清「首包慢」是流式本身的特性还是客户端没传 stream_format
+            "stream": stream,
+            "stream_format": stream_format,
+            "stream_ignored": stream_ignored,
             "in_chars": in_chars,      # 客户提交的量（input 口径的计费依据）
             "sent_chars": sent,        # 实际合成 = 成本依据
             "bill_chars": n,
@@ -255,6 +267,78 @@ def record(
         _cleanup_old(BILLING_LOG_DAYS)
     except Exception as e:  # noqa: BLE001
         logger.warning("billing log write failed (request %s): %s", request_id, e)
+
+
+def _acc_row(out: dict, r: dict) -> None:
+    """把一行账本累加进汇总。
+
+    stats() 与 window_stats() 共用这一份逻辑 —— 两处各写一遍必然漂移，
+    漂移之后「单日对得上、窗口对不上」这种问题极难查。
+
+    兼容旧行：2026-11-11 之前的行没有 `stream` / `model_id` 字段。
+    缺 `stream` 一律按非流式计（当时线上确实是纯非流式）；
+    缺 `model_id` 退回 `model`（虽可能是音色别名，但聊胜于无）。
+    """
+    out["requests"] += 1
+    ok = r.get("status") == 200
+    if ok:
+        out["succeeded"] += 1
+    else:
+        out["failed"] += 1
+    out["in_chars"] += r.get("in_chars") or 0
+    out["bill_chars"] += r.get("bill_chars") or 0
+    out["up_credits"] += r.get("up_credits") or 0
+
+    if r.get("stream") is True:
+        out["sse_requests"] += 1
+    else:
+        out["audio_requests"] += 1
+    if r.get("stream_ignored"):
+        out["stream_ignored"] += 1
+
+    model_key = r.get("model_id") or r.get("model") or "<unknown>"
+    b = out["by_model"].setdefault(
+        model_key, {"requests": 0, "sent_chars": 0, "bill_chars": 0, "up_credits": 0})
+    b["requests"] += 1
+    b["bill_chars"] += r.get("bill_chars") or 0
+    b["up_credits"] += r.get("up_credits") or 0
+
+    if ok:
+        out["ok_bill_chars"] += r.get("bill_chars") or 0
+        out["ok_up_credits"] += r.get("up_credits") or 0
+        raw = r.get("in_chars") or 0
+        sent = r.get("sent_chars")
+        sent = raw if sent is None else sent
+        out["sent_chars"] += sent
+        out["ok_sent_chars"] += sent
+        b["sent_chars"] += sent
+        if raw > sent:
+            out["saved_chars"] += raw - sent
+
+
+def _finish_totals(out: dict) -> dict:
+    """把累加值折算成比率。所有比率在分母为 0 时保持 None —— 宁可不给，不给错数。"""
+    total = out["sse_requests"] + out["audio_requests"]
+    if total:
+        out["sse_ratio"] = round(out["sse_requests"] / total, 4)
+    if out["in_chars"] and out["saved_chars"]:
+        out["saved_ratio"] = round(out["saved_chars"] / out["in_chars"], 4)
+    if out["ok_sent_chars"] and out["ok_up_credits"]:
+        out["credits_per_char"] = round(out["ok_up_credits"] / out["ok_sent_chars"], 4)
+    # 每个模型档位单独算单价：flash 档约为 v2/v3 的一半，混在一起算平均值
+    # 会得到一个既不代表 flash 也不代表 v3 的假数字。
+    for b in out["by_model"].values():
+        b["credits_per_char"] = (
+            round(b["up_credits"] / b["sent_chars"], 4) if b["sent_chars"] and b["up_credits"] else None)
+    if (out["ok_bill_chars"] and out["ok_up_credits"]
+            and UP_CREDITS_PER_USD > 0 and CHARS_PER_USD > 0):
+        up_cost_usd = out["ok_up_credits"] / UP_CREDITS_PER_USD
+        revenue_usd = out["ok_bill_chars"] / CHARS_PER_USD
+        if revenue_usd > 0:
+            out["gross_margin_ratio"] = round(1 - up_cost_usd / revenue_usd, 4)
+            out["up_cost_usd"] = round(up_cost_usd, 6)
+            out["revenue_usd"] = round(revenue_usd, 6)
+    return out
 
 
 def stats(day: str | None = None) -> dict:
@@ -297,6 +381,8 @@ def stats(day: str | None = None) -> dict:
            "ok_bill_chars": 0, "ok_up_credits": 0, "ok_sent_chars": 0,
            "sent_chars": 0, "saved_chars": 0, "saved_ratio": None,
            "credits_per_char": None,
+           "sse_requests": 0, "audio_requests": 0, "stream_ignored": 0,
+           "sse_ratio": None, "by_model": {},
            "gross_margin_ratio": None, "path": path}
     if not os.path.exists(path):
         return out
@@ -310,48 +396,10 @@ def stats(day: str | None = None) -> dict:
                     r = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                out["requests"] += 1
-                ok = r.get("status") == 200
-                if ok:
-                    out["succeeded"] += 1
-                else:
-                    out["failed"] += 1
-                out["in_chars"] += r.get("in_chars") or 0
-                out["bill_chars"] += r.get("bill_chars") or 0
-                out["up_credits"] += r.get("up_credits") or 0
-                if ok:
-                    out["ok_bill_chars"] += r.get("bill_chars") or 0
-                    out["ok_up_credits"] += r.get("up_credits") or 0
-                    # 清理掉的字符：原始输入 - 实际合成
-                    raw = r.get("in_chars") or 0
-                    sent = r.get("sent_chars")
-                    sent = raw if sent is None else sent
-                    out["sent_chars"] += sent
-                    out["ok_sent_chars"] += sent
-                    if raw > sent:
-                        out["saved_chars"] += raw - sent
+                _acc_row(out, r)
     except OSError as e:
         logger.warning("billing stats read failed: %s", e)
-    if out["in_chars"] and out["saved_chars"]:
-        out["saved_ratio"] = round(out["saved_chars"] / out["in_chars"], 4)
-
-    # --- 上游真实单价：积分 / 字符。同量纲，有意义 ---
-    if out["ok_sent_chars"] and out["ok_up_credits"]:
-        out["credits_per_char"] = round(
-            out["ok_up_credits"] / out["ok_sent_chars"], 4)
-
-    # --- 毛利率：必须先把两边都换成美元，否则是拿积分除字符 ---
-    # 只算成功请求：失败请求不收费但上游可能扣了钱，
-    # 混进来会把毛利率算歪（那是"白扣"损失，不是毛利）
-    if (out["ok_bill_chars"] and out["ok_up_credits"]
-            and UP_CREDITS_PER_USD > 0 and CHARS_PER_USD > 0):
-        up_cost_usd = out["ok_up_credits"] / UP_CREDITS_PER_USD
-        revenue_usd = out["ok_bill_chars"] / CHARS_PER_USD
-        if revenue_usd > 0:
-            out["gross_margin_ratio"] = round(1 - up_cost_usd / revenue_usd, 4)
-            out["up_cost_usd"] = round(up_cost_usd, 6)
-            out["revenue_usd"] = round(revenue_usd, 6)
-    return out
+    return _finish_totals(out)
 
 
 def window_stats(days: int = 30) -> dict:
@@ -368,6 +416,8 @@ def window_stats(days: int = 30) -> dict:
            "ok_bill_chars": 0, "ok_up_credits": 0, "ok_sent_chars": 0,
            "sent_chars": 0, "saved_chars": 0, "saved_ratio": None,
            "credits_per_char": None,
+           "sse_requests": 0, "audio_requests": 0, "stream_ignored": 0,
+           "sse_ratio": None, "by_model": {},
            "gross_margin_ratio": None}
     today = date.today()
     for i in range(days):
@@ -385,40 +435,10 @@ def window_stats(days: int = 30) -> dict:
                         r = json.loads(line)
                     except json.JSONDecodeError:
                         continue
-                    out["requests"] += 1
-                    ok = r.get("status") == 200
-                    if ok:
-                        out["succeeded"] += 1
-                    else:
-                        out["failed"] += 1
-                    out["in_chars"] += r.get("in_chars") or 0
-                    out["bill_chars"] += r.get("bill_chars") or 0
-                    out["up_credits"] += r.get("up_credits") or 0
-                    if ok:
-                        out["ok_bill_chars"] += r.get("bill_chars") or 0
-                        out["ok_up_credits"] += r.get("up_credits") or 0
-                        raw = r.get("in_chars") or 0
-                        sent = r.get("sent_chars")
-                        sent = raw if sent is None else sent
-                        out["sent_chars"] += sent
-                        out["ok_sent_chars"] += sent
-                        if raw > sent:
-                            out["saved_chars"] += raw - sent
+                    _acc_row(out, r)
         except OSError as e:
             logger.warning("window stats read failed for %s: %s", path, e)
-    if out["in_chars"] and out["saved_chars"]:
-        out["saved_ratio"] = round(out["saved_chars"] / out["in_chars"], 4)
-    if out["ok_sent_chars"] and out["ok_up_credits"]:
-        out["credits_per_char"] = round(out["ok_up_credits"] / out["ok_sent_chars"], 4)
-    if (out["ok_bill_chars"] and out["ok_up_credits"]
-            and UP_CREDITS_PER_USD > 0 and CHARS_PER_USD > 0):
-        up_cost_usd = out["ok_up_credits"] / UP_CREDITS_PER_USD
-        revenue_usd = out["ok_bill_chars"] / CHARS_PER_USD
-        if revenue_usd > 0:
-            out["gross_margin_ratio"] = round(1 - up_cost_usd / revenue_usd, 4)
-            out["up_cost_usd"] = round(up_cost_usd, 6)
-            out["revenue_usd"] = round(revenue_usd, 6)
-    return out
+    return _finish_totals(out)
 
 def usage_by_token(days: int = 30) -> list[dict]:
     """按客户令牌聚合最近 N 天的用量 —— 给用量看板用。
@@ -456,6 +476,7 @@ def usage_by_token(days: int = 30) -> list[dict]:
                         "token": tok, "requests": 0,
                         "in_chars": 0, "sent_chars": 0, "up_credits": 0,
                         "saved_chars": 0, "last_seen": 0,
+                        "sse_requests": 0, "models": set(),
                     })
                     raw = r.get("in_chars") or 0
                     sent = r.get("sent_chars")
@@ -464,6 +485,11 @@ def usage_by_token(days: int = 30) -> list[dict]:
                     a["in_chars"] += raw
                     a["sent_chars"] += sent
                     a["up_credits"] += r.get("up_credits") or 0
+                    if r.get("stream") is True:
+                        a["sse_requests"] += 1
+                    m = r.get("model_id") or r.get("model")
+                    if m:
+                        a["models"].add(m)
                     if raw > sent:
                         a["saved_chars"] += raw - sent
                     a["last_seen"] = max(a["last_seen"], r.get("ts") or 0)
@@ -473,5 +499,8 @@ def usage_by_token(days: int = 30) -> list[dict]:
     rows = list(agg.values())
     for r in rows:
         r["saved_ratio"] = round(r["saved_chars"] / r["in_chars"], 4) if r["in_chars"] else 0.0
+        r["sse_ratio"] = round(r["sse_requests"] / r["requests"], 4) if r["requests"] else 0.0
+        # set 不能直接 json 序列化，转成稳定排序的列表
+        r["models"] = sorted(r["models"])
     rows.sort(key=lambda x: x["saved_chars"], reverse=True)
     return rows

@@ -309,8 +309,20 @@ async def audio_speech(req: SpeechRequest, request: Request):
     # 记账上下文：所有 return 分支都经过 _bill()，失败请求同样留痕
     # 注意：raw_chars / clean_rules 不是 record() 的具名参数，走 extra 传入
     ctx = {
+        # model 是**客户端请求里写的那个值**，可能根本不是模型名：
+        # OpenAI 兼容调用方习惯把音色写进 model（"shimmer"/"rachel"），
+        # 所以这个字段只能用来还原「客户怎么调的」，**不能用来算成本**。
+        # 真实上游模型见下面的 model_id（解析后回填）。
         "model": req.model if not req.voice else (req.voice or req.model),
         "voice": req.voice,
+        # 流式标记：不记这两个字段，事后就无法回答「有多少人用流式」。
+        # stream      是否**实际**走了 SSE（本次生成的音频类型）
+        # stream_ignored  客户端要了 stream:true 但没给 stream_format=sse，
+        #                 我们按非流式返回 —— 这类请求的首包延迟看起来很差，
+        #                 没这个标记会被误判成适配器性能问题。
+        "stream": req.stream_format == "sse",
+        "stream_format": req.stream_format,
+        "stream_ignored": bool(req.stream) and req.stream_format != "sse",
         "client_ip": request.client.host if request.client else None,
         "token_name": _token_label(request),
     }
@@ -379,6 +391,10 @@ async def audio_speech(req: SpeechRequest, request: Request):
                                 "model 传引擎名（eleven_v3）或已注册的别名，不要传 \"tts-1\" 之外的自造名",
                             headers=_bill(400, error="voice_id 非法"))
     ctx["voice"] = voice_id
+    # 上游真实模型 id（eleven_flash_v2_5 / eleven_v3 …）。
+    # 必须单独记：`model` 字段里常是音色别名，按它算成本会把 flash 档
+    # （约 0.24 积分/字符）和 v2/v3 档（约 0.48）混成一个数。
+    ctx["model_id"] = model_id
     if not voice_id:
         return _openai_error(
             400,
