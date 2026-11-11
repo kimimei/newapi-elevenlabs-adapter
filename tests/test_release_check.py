@@ -85,10 +85,12 @@ def test_quote_block_placeholders_ignored():
     assert "kamy@example.com" in body, "正文内容被误剥离"
 
 
-def test_real_security_md_has_real_email():
-    """SECURITY.md 正文里必须是真实邮箱，不能还有占位符。
+def test_real_security_md_has_working_channel():
+    """SECURITY.md 必须给出一个真的能用的渠道。
 
-    不断言具体是哪个邮箱 —— 换邮箱不该导致测试挂。
+    两种都算数：真实邮箱，或 GitHub 的私密漏洞报告入口。
+    本项目选了后者（公开仓库不挂个人邮箱，避免被爬、也免去换人的交接成本），
+    所以这里只断言「至少有一个、且不是占位符」，不锁定具体是哪种。
     """
     p = os.path.join(ROOT, "SECURITY.md")
     with io.open(p, encoding="utf-8") as f:
@@ -98,7 +100,10 @@ def test_real_security_md_has_real_email():
 
     import re
     emails = re.findall(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", body)
-    assert emails, "SECURITY.md 正文里应有一个真实邮箱"
+    has_advisory = any("Security Advisory" in ln or "Report a vulnerability" in ln
+                       for ln in s.splitlines())
+    assert emails or has_advisory, "SECURITY.md 既没有邮箱也没有私密报告入口，漏洞无处可报"
+
     r = rc.Result()
     rc.rule_security_contact(r)
     assert not r.blocked, r.items

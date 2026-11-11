@@ -39,6 +39,11 @@ jobs:
       # 这是一条会真的拦住你的规则，不是装饰。
       - name: Release gate
         run: python scripts/release_check.py
+        env:
+          # 项目专属内部域名清单不进仓库，CI 里走 secrets。
+          # 未配置时只跑内置的通用后缀（.corp / .internal / .lan …），
+          # 不影响其余检查 —— 但项目域名就查不出来，所以该配还得配。
+          RELEASE_CHECK_INTERNAL_HOSTS: ${{ secrets.RELEASE_CHECK_INTERNAL_HOSTS }}
 
       # 示例脚本是给人抄的，抄错一句就是一轮排障。只做语法级检查：
       # 不联网、不需要上游 Key（Node 18+ 在 ubuntu-latest 自带）。

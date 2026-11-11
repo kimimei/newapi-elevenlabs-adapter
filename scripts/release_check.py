@@ -43,6 +43,27 @@ ALLOWED_PLACEHOLDERS = {
     "sk_你的ElevenLabsKey", "sk-你的令牌", "sk-xxxx", "<token>", "<newapi>",
 }
 
+# 内部域名后缀：默认值 + 项目专属清单。
+#
+# 项目专属域名**不能写进仓库** —— 写进去本身就是一次泄露，而且规则里带真实域名
+# 会让「规则文件」变成泄露源。所以只能从两个外部来源取：
+#   .release-check.local                                    仓库根，已在 .gitignore 里
+#   RELEASE_CHECK_INTERNAL_HOSTS=corp.example,another.example  CI 里走 secrets
+DEFAULT_INTERNAL_SUFFIXES = [".internal", ".intranet", ".corp", ".lan", ".home.arpa"]
+
+# 文档里教用户填的占位域名，以及官方公开域名：这些不该被当成内部域名。
+ALLOWED_HOSTS = {
+    "example.com", "example.org", "example.net", "your-domain.com", "localhost",
+    "api.elevenlabs.io", "elevenlabs.io", "github.com", "raw.githubusercontent.com",
+    "pypi.org", "python.org", "docs.python.org", "docker.com", "hub.docker.com",
+}
+
+LOCAL_INTERNAL_HOSTS_FILE = ".release-check.local"
+
+HOST_RE = re.compile(
+    r"\b(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,24}\b"
+)
+
 SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", "node_modules", "env"}
 # 虚拟环境目录名五花八门（.venv / .venv-ci / venv310 / venv-test），
 # 用前缀匹配而不是枚举 —— 否则贡献者随便起个名就会把 site-packages
@@ -182,6 +203,62 @@ def rule_no_real_hosts(r):
             if ip in ALLOWED_IPS:
                 continue
             r.add("BLOCK", "真实 IP 泄露", rel, "%s 不是白名单内的示例地址" % ip)
+
+
+def _split_hosts(s):
+    """按行/逗号拆分，忽略空行与 # 注释。"""
+    out = []
+    for ln in re.split(r"[\n,]", s or ""):
+        ln = ln.strip()
+        if not ln or ln.startswith("#"):
+            continue
+        out.append(ln)
+    return out
+
+
+def _internal_suffixes():
+    """汇总生效的内部后缀：默认 + 本地文件 + 环境变量，统一成 `.suffix` 形态。"""
+    raw = list(DEFAULT_INTERNAL_SUFFIXES)
+    p = os.path.join(ROOT, LOCAL_INTERNAL_HOSTS_FILE)
+    if os.path.exists(p):
+        raw.extend(_split_hosts(_read(p) or ""))
+    env = os.environ.get("RELEASE_CHECK_INTERNAL_HOSTS", "")
+    if env:
+        raw.extend(_split_hosts(env))
+
+    out, seen = [], set()
+    for s in raw:
+        s = s.strip().lower().lstrip("*")
+        if not s:
+            continue
+        if not s.startswith("."):
+            s = "." + s
+        if s not in seen:
+            seen.add(s)
+            out.append(s)
+    return out
+
+
+def rule_no_internal_hosts(r):
+    """拦截内部域名：默认后缀 + 项目专属清单（本地文件 / CI secrets）。
+
+    与 Go 版 RuleNoInternalHosts 同一套语义：后缀匹配、白名单放行、
+    未配置时只跑内置的通用后缀，不会因为缺 secret 就整条规则失效。
+    """
+    suffixes = _internal_suffixes()
+    for p in iter_text_files(ROOT):
+        rel = os.path.relpath(p, ROOT).replace("\\", "/")
+        s = _read(p)
+        if s is None:
+            continue
+        for h in sorted(set(HOST_RE.findall(s))):
+            low = h.lower()
+            if low in ALLOWED_HOSTS:
+                continue
+            for suf in suffixes:
+                if low.endswith(suf):
+                    r.add("BLOCK", "内部域名泄露", rel, "%s 命中内部后缀 %s" % (h, suf))
+                    break
 
 
 def rule_no_keys(r):
@@ -349,6 +426,8 @@ def self_test():
         "Copyright 2026 ElevenLabs Adapter contributors\n")
     open(os.path.join(fake_root, "leak.txt"), "w", encoding="utf-8").write(
         "host=203.0.113.99 key=sk-abcdefghijklmnopqrstuvwx\n")
+    open(os.path.join(fake_root, "internal.txt"), "w", encoding="utf-8").write(
+        "upstream: http://build.corp/healthz\n")
     open(os.path.join(fake_root, "a.mp3"), "wb").write(b"x")
 
     old_root = globals()["ROOT"]
@@ -360,6 +439,7 @@ def self_test():
         rule_license_holder(r)
         rule_security_contact(r)
         rule_no_real_hosts(r)
+        rule_no_internal_hosts(r)
         rule_no_keys(r)
         rule_no_media(r)
         rules = {i["rule"] for i in r.items}
@@ -367,12 +447,42 @@ def self_test():
         globals()["ROOT"] = old_root
         globals()["SELF"] = old_self
 
-    expect = {"LICENSE 版权主体", "漏洞报告邮箱", "真实 IP 泄露",
+    expect = {"LICENSE 版权主体", "漏洞报告邮箱", "真实 IP 泄露", "内部域名泄露",
               "密钥泄露", "测试音频入仓"}
     missing = expect - rules
     if missing:
         print("反证失败：以下规则对故意违规文件没有报警：%s" % ", ".join(sorted(missing)))
         return 1
+
+    # 内部域名清单必须真的生效，且两个来源都要验：
+    #   ① 默认后缀（上面 internal.txt 里的 build.corp 已覆盖）
+    #   ② RELEASE_CHECK_INTERNAL_HOSTS —— 对应 CI 里的同名 secret。
+    # 这条最值得钉死：secret 没配上时，项目专属域名一个都查不出来，
+    # 但报告依然写「全部通过」，看起来和配好了一模一样。
+    os.remove(os.path.join(fake_root, "internal.txt"))
+    custom = os.path.join(fake_root, "custom.txt")
+    open(custom, "w", encoding="utf-8").write("upstream: http://tts.kamytest.example/v1\n")
+    globals()["ROOT"] = fake_root
+    globals()["SELF"] = os.path.join(fake_root, "__none__")
+    try:
+        r3a = Result()
+        rule_no_internal_hosts(r3a)          # 未配置：自定义域名不该被当成内部域名
+        os.environ["RELEASE_CHECK_INTERNAL_HOSTS"] = "kamytest.example"
+        try:
+            r3b = Result()
+            rule_no_internal_hosts(r3b)      # 配置后：必须命中
+        finally:
+            os.environ.pop("RELEASE_CHECK_INTERNAL_HOSTS", None)
+    finally:
+        globals()["ROOT"] = old_root
+        globals()["SELF"] = old_self
+    if r3a.blocked:
+        print("误报：未配置的自定义域名被当成内部域名：%s" % r3a.blocked)
+        return 1
+    if not any("内部域名" in i["rule"] for i in r3b.blocked):
+        print("反向验证失败：RELEASE_CHECK_INTERNAL_HOSTS 没生效：%s" % r3b.items)
+        return 1
+    os.remove(custom)
 
     # 正向验证：把占位邮箱换成正常域名后，该规则必须放行（不能只会拦不会放）
     open(os.path.join(fake_root, "SECURITY.md"), "w", encoding="utf-8").write(
@@ -447,8 +557,9 @@ def self_test():
         print("反证失败：超限音频没有被拦：%s" % r5.items)
         return 1
 
-    print("反证通过：5 类故意违规均被规则捕获；"
-          "正向验证：正常邮箱、合格演示音频放行，未登记降级 WARN，超限仍 BLOCK")
+    print("反证通过：%d 类故意违规均被规则捕获；"
+          "正向验证：正常邮箱、合格演示音频放行，未登记降级 WARN，超限仍 BLOCK；"
+          "内部域名：默认后缀与 RELEASE_CHECK_INTERNAL_HOSTS 两个来源均生效" % len(expect))
     return 0
 
 
@@ -458,6 +569,7 @@ ALL_RULES = [
     rule_license_holder,
     rule_security_contact,
     rule_no_real_hosts,
+    rule_no_internal_hosts,
     rule_no_keys,
     rule_no_media,
     rule_no_unresolved_placeholder,

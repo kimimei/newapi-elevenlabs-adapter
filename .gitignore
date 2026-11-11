@@ -38,3 +38,6 @@ logs/
 # 进程/编辑器残留：.bak 备份、运行日志
 *.bak
 *.log
+
+# 发布门禁的项目专属内部域名清单（真实域名不进仓库，CI 里走 secrets）
+.release-check.local
