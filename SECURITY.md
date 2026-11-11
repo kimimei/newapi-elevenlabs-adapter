@@ -56,7 +56,9 @@ S3 给出 2 MiB 默认上限（`ADAPTER_MAX_BODY_BYTES`），S1 只允许 `[A-Za
 
 ## 五、报告漏洞
 
-请**不要**开公开 issue。发送到：`m1501816@163.com`，
-或在 GitHub 上用 **Security → Report a vulnerability** 私密报告。
+请**不要**开公开 issue —— 公开的漏洞细节等于给所有部署实例发通知。
+
+唯一入口是 GitHub 的 **Security → Report a vulnerability**（[Security 页](https://github.com/kimimei/newapi-elevenlabs-adapter/security)）。
+报告会进私密 advisory，可以在里面直接讨论、提交补丁、申请 CVE，全程不公开；也不需要你留下邮箱。
 
 请附：复现步骤、影响范围、你的环境（版本 / 部署方式）。48 小时内回复。

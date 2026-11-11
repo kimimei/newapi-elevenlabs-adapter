@@ -145,8 +145,14 @@ def rule_security_contact(r):
     # 提示语（引用块）里的占位符不算；只查正文里实际生效的邮箱
     body = _strip_md_quote(s)
     emails = set(re.findall(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", body))
-    if not emails:
-        r.add("BLOCK", "漏洞报告邮箱", "SECURITY.md", "未找到任何邮箱地址")
+    # 两种合法渠道，具其一即可：真实邮箱 / GitHub 私密报告（Security → Report a vulnerability）。
+    # 后者对开源仓库更合适：报告不进个人信箱，也不要求报告者暴露邮箱。
+    # 两者都没有才是问题 —— 那等于漏洞无处可报。
+    has_advisory = any("Security Advisory" in ln or "Report a vulnerability" in ln
+                       for ln in s.splitlines())
+    if not emails and not has_advisory:
+        r.add("BLOCK", "漏洞报告邮箱", "SECURITY.md",
+              "既没有邮箱，也没有 GitHub 私密报告入口 —— 漏洞无处可报")
         return
     # 只有"明显是占位符"的域名才算数。example.com 虽是 RFC 保留域名，
     # 但也可能是真实用域名（如 example 的员工邮箱），不在此列。
@@ -159,8 +165,7 @@ def rule_security_contact(r):
         if dom in placeholder_domains:
             r.add("BLOCK", "漏洞报告邮箱", "SECURITY.md",
                   "邮箱 %s 是占位符，发布前必须换成真实邮箱" % e)
-    if not any("Security Advisory" in ln or "Report a vulnerability" in ln
-               for ln in s.splitlines()):
+    if emails and not has_advisory:
         r.add("WARN", "私密报告通道", "SECURITY.md",
               "未提 GitHub 私密漏洞报告入口，建议补上作为邮箱之外的备份通道")
 
@@ -382,6 +387,22 @@ def self_test():
         globals()["SELF"] = old_self
     if r2.blocked:
         print("反向验证失败：换成正常邮箱后仍被拦：%s" % r2.blocked)
+        return 1
+
+    # 正向验证 #1b：完全不写邮箱、只给 GitHub 私密报告入口，也必须放行。
+    # 开源仓库本来就该优先走 advisory —— 报告不进个人信箱，也不要求报告者留邮箱。
+    open(os.path.join(fake_root, "SECURITY.md"), "w", encoding="utf-8").write(
+        "唯一入口：本仓库 Security → Report a vulnerability\n")
+    globals()["ROOT"] = fake_root
+    globals()["SELF"] = os.path.join(fake_root, "__none__")
+    try:
+        r1b = Result()
+        rule_security_contact(r1b)
+    finally:
+        globals()["ROOT"] = old_root
+        globals()["SELF"] = old_self
+    if r1b.blocked:
+        print("反向验证失败：只用私密报告入口仍被拦：%s" % r1b.blocked)
         return 1
 
     # 正向验证 #2：演示音频既要放行，又不能变成后门。
